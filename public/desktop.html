@@ -2647,12 +2647,25 @@ async function completeLogin() {
   document.getElementById('sbRole').textContent   = me.role;
   applyPermissionGating(currentPermissions);
 
+  // Switch to the last-viewed page right away — page-users is marked
+  // "active" directly in the HTML (it was the default view in the original
+  // prototype), so without this it's what briefly shows while loadAllData()
+  // is still in flight. The full showPage() call below (once real data is
+  // in) re-does this plus the page-specific render triggers (Reports,
+  // Roles) that need loaded data to be meaningful.
+  const pg = localStorage.getItem('aoba_pmos_page') || 'dashboard';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + pg)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(`'${pg}'`)) n.classList.add('active');
+  });
+
   await loadAllData();
   initCatDropdown('stylesCatFilter'); initCatDropdown('listingsCatFilter');
   renderTable(); renderRoles(); updateStats(); renderPendingInvites();
   renderStyles(); renderListings(); renderDashboard(); renderReports();
   renderEAN(); renderAudit(); renderImportHistory(); renderSearchRecents();
-  const pg = localStorage.getItem('aoba_pmos_page') || 'dashboard';
   showPage(pg);
 }
 
