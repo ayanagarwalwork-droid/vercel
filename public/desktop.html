@@ -1068,8 +1068,16 @@
 </head>
 <body>
 
+<!-- ═══ AUTH CHECK LOADING ═══════════════════════════════════════════════
+     Shown by default while we check for a saved session on page load, so
+     refreshing doesn't flash the full login form before snapping back to
+     the app. -->
+<div id="authChecking" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000">
+  <img class="aoba-logo" alt="aoba" style="width:80px;opacity:0.5">
+</div>
+
 <!-- ═══ LOGIN ═══════════════════════════════════════════════════════════ -->
-<div id="loginPage">
+<div id="loginPage" style="display:none">
   <div class="login-split">
     <div class="login-left">
       <div>
@@ -2631,6 +2639,7 @@ async function completeLogin() {
   currentPermissions = session.permissions;
 
   document.getElementById('loginError').textContent = '';
+  document.getElementById('authChecking').style.display = 'none';
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('appShell').style.display  = 'flex';
   document.getElementById('sbAvatar').textContent = initials(me.name);
@@ -2764,20 +2773,36 @@ async function doLogout() {
   await sb.auth.signOut();
   me = null;
   document.getElementById('appShell').style.display  = 'none';
+  document.getElementById('authChecking').style.display = 'none';
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPass').value  = '';
 }
 
-// Single entry point for every sign-in path: password login, Google OAuth
-// redirect, or an already-persisted session found on page load.
+// Single entry point for every sign-in path: password login or an
+// already-persisted session found on page load. Also responsible for
+// revealing either the app or the login form once we know which one
+// applies, instead of flashing the login form while that's being figured
+// out (see #authChecking, shown by default in the HTML).
 let _completingLogin = false;
 sb.auth.onAuthStateChange((event, session) => {
-  if (!session || _completingLogin) return;
-  if (document.getElementById('loginPage').style.display === 'none') return; // already in the app
+  if (_completingLogin) return;
+
+  if (!session) {
+    document.getElementById('authChecking').style.display = 'none';
+    if (document.getElementById('appShell').style.display !== 'flex') {
+      document.getElementById('loginPage').style.display = 'flex';
+    }
+    return;
+  }
+
+  if (document.getElementById('appShell').style.display === 'flex') return; // already in the app (e.g. a background token refresh)
+
   _completingLogin = true;
   completeLogin()
     .catch(e => {
+      document.getElementById('authChecking').style.display = 'none';
+      document.getElementById('loginPage').style.display = 'flex';
       document.getElementById('loginError').textContent =
         e.message || 'Could not load your account. If you were just invited, contact an admin.';
       sb.auth.signOut();
