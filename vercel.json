@@ -6,6 +6,9 @@
       "headers": [{ "key": "X-Content-Type-Options", "value": "nosniff" }]
     }
   ],
+  "redirects": [
+    { "source": "/", "destination": "/desktop.html", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/api/users", "destination": "/api/users/handler" },
     { "source": "/api/users/:path*", "destination": "/api/users/handler?path=:path*" },
