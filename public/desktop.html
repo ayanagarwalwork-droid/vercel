@@ -1104,13 +1104,6 @@
     </div>
     <button class="btn-primary" onclick="doLogin()">Sign in</button>
     <div class="login-error" id="loginError"></div>
-    <div style="display:flex;align-items:center;gap:10px;margin:18px 0;color:var(--text3);font-size:11px;letter-spacing:0.06em;text-transform:uppercase">
-      <div style="flex:1;height:1px;background:var(--border)"></div>or<div style="flex:1;height:1px;background:var(--border)"></div>
-    </div>
-    <button class="btn-primary" style="background:#fff;color:var(--text);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;gap:8px" onclick="signInWithGoogle()">
-      <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.52 12.27c0-.86-.08-1.68-.22-2.47H12v4.67h6.48c-.28 1.5-1.13 2.78-2.4 3.63v3.02h3.88c2.27-2.09 3.58-5.17 3.58-8.85z"/><path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.95-2.9l-3.88-3.02c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.26v3.11C3.24 21.3 7.28 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.27A7.2 7.2 0 014.9 12c0-.79.14-1.56.37-2.27V6.62H1.26A11.98 11.98 0 000 12c0 1.93.46 3.76 1.26 5.38l4.01-3.11z"/><path fill="#EA4335" d="M12 4.77c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0 7.28 0 3.24 2.7 1.26 6.62l4.01 3.11C6.22 6.88 8.87 4.77 12 4.77z"/></svg>
-      Sign in with Google
-    </button>
       </div>
     </div>
   </div>
@@ -2765,16 +2758,6 @@ async function doLogin() {
   const { error } = await sb.auth.signInWithPassword({ email, password: pass });
   if (error) { err.textContent = 'Invalid credentials or inactive account.'; return; }
   // completeLogin() runs from the onAuthStateChange listener below.
-}
-
-async function signInWithGoogle() {
-  const err = document.getElementById('loginError');
-  err.textContent = '';
-  const { error } = await sb.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.origin + '/desktop.html' },
-  });
-  if (error) err.textContent = error.message;
 }
 
 async function doLogout() {
