@@ -1121,6 +1121,47 @@
   </div>
 </div>
 
+<!-- ═══ SET PASSWORD (first login after an invite) ═════════════════════════ -->
+<div id="setPasswordPage" style="display:none">
+  <div class="login-split">
+    <div class="login-left">
+      <div>
+        <img class="aoba-logo ll-logo-img" alt="aoba">
+        <div class="ll-sub">Product Master OS</div>
+      </div>
+      <div>
+        <div class="ll-palette">
+          <span style="background:#F096FF"></span>
+          <span style="background:#FF8B36"></span>
+          <span style="background:#A8F42C"></span>
+          <span style="background:#FFE734"></span>
+          <span style="background:rgba(255,255,255,0.15)"></span>
+        </div>
+        <p class="ll-tagline">Every stitch,<br>every size,<br>every sale.</p>
+      </div>
+      <div class="ll-foot">Internal catalog control — AOBA team only.</div>
+    </div>
+    <div class="login-right">
+      <div class="login-box">
+    <img class="aoba-logo login-logo-img" alt="aoba">
+    <div class="login-sub">Product Master OS</div>
+    <div class="login-heading">Welcome — set your password</div>
+    <p class="login-hint">You've accepted your invite. Choose a password to finish setting up your account — you'll use it to sign in from now on.</p>
+    <div class="field">
+      <label>New Password</label>
+      <input type="password" id="newPass" placeholder="Min. 8 characters" />
+    </div>
+    <div class="field">
+      <label>Confirm Password</label>
+      <input type="password" id="newPassConfirm" placeholder="Re-enter password" />
+    </div>
+    <button class="btn-primary" onclick="submitNewPassword()">Set password &amp; continue</button>
+    <div class="login-error" id="newPassError"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ APP SHELL ════════════════════════════════════════════════════════ -->
 <div id="appShell">
   <div class="shell">
@@ -2801,19 +2842,58 @@ async function doLogout() {
   me = null;
   document.getElementById('appShell').style.display  = 'none';
   document.getElementById('authChecking').style.display = 'none';
+  document.getElementById('setPasswordPage').style.display = 'none';
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPass').value  = '';
 }
 
-// Single entry point for every sign-in path: password login or an
-// already-persisted session found on page load. Also responsible for
-// revealing either the app or the login form once we know which one
-// applies, instead of flashing the login form while that's being figured
-// out (see #authChecking, shown by default in the HTML).
+// Called after a new password is set (invite acceptance or password reset)
+// — proceeds into the app exactly like a normal login from here.
+async function submitNewPassword() {
+  const pass    = document.getElementById('newPass').value;
+  const confirm = document.getElementById('newPassConfirm').value;
+  const err     = document.getElementById('newPassError');
+  if (!pass || pass.length < 8) { err.textContent = 'Password must be at least 8 characters.'; return; }
+  if (pass !== confirm) { err.textContent = 'Passwords do not match.'; return; }
+  err.textContent = '';
+
+  const { error } = await sb.auth.updateUser({ password: pass });
+  if (error) { err.textContent = error.message; return; }
+
+  document.getElementById('setPasswordPage').style.display = 'none';
+  document.getElementById('authChecking').style.display = 'flex';
+  try {
+    await completeLogin();
+  } catch (e) {
+    document.getElementById('authChecking').style.display = 'none';
+    document.getElementById('loginPage').style.display = 'flex';
+    document.getElementById('loginError').textContent = e.message || 'Could not load your account.';
+    await sb.auth.signOut();
+  }
+}
+
+// Single entry point for every sign-in path: password login, accepting an
+// invite/reset link, or an already-persisted session found on page load.
+// Also responsible for revealing whichever of the app / login form / set-
+// password form applies, instead of flashing the login form while that's
+// being figured out (see #authChecking, shown by default in the HTML).
 let _completingLogin = false;
 sb.auth.onAuthStateChange((event, session) => {
   if (_completingLogin) return;
+
+  // Invite-acceptance and "forgot password" links both land here as
+  // PASSWORD_RECOVERY — the account has no password yet, so send them to
+  // set one instead of silently logging them into the app with no way to
+  // sign back in later.
+  if (event === 'PASSWORD_RECOVERY') {
+    document.getElementById('authChecking').style.display = 'none';
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('setPasswordPage').style.display = 'flex';
+    return;
+  }
+
+  if (document.getElementById('setPasswordPage').style.display === 'flex') return; // mid set-password flow
 
   if (!session) {
     document.getElementById('authChecking').style.display = 'none';
