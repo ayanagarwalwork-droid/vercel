@@ -1058,7 +1058,11 @@
     .sd-upload-hover { border-color:var(--accent) !important; background:rgba(168,244,44,0.04); }
     .sd-upload-thumb { position:relative; display:inline-block; }
     .sd-upload-thumb img { width:72px; height:72px; object-fit:cover; border-radius:6px; border:1px solid var(--border); display:block; }
-    .sd-upload-thumb button { position:absolute; top:-7px; right:-7px; width:18px; height:18px; border-radius:50%; border:none; background:var(--danger,#e44); color:#fff; font-size:10px; cursor:pointer; padding:0; line-height:18px; text-align:center; }
+    .sd-remove-btn { position:absolute; top:-7px; right:-7px; width:18px; height:18px; border-radius:50%; border:none; background:var(--danger,#e44); color:#fff; font-size:10px; cursor:pointer; padding:0; line-height:18px; text-align:center; }
+    .sd-upload-thumb-order { position:absolute; bottom:0; left:0; right:0; display:flex; align-items:center; justify-content:center; gap:5px; background:rgba(17,28,84,0.72); border-radius:0 0 6px 6px; padding:2px 0; }
+    .sd-order-btn { background:none; border:none; color:#fff; font-size:10px; cursor:pointer; padding:1px 3px; line-height:1; }
+    .sd-order-btn:disabled { opacity:0.3; cursor:default; }
+    .sd-upload-thumb-order span { font-size:9px; color:#fff; opacity:0.85; min-width:9px; text-align:center; }
     .sd-price-row { display:flex; gap:10px; margin-top:12px; }
     .sd-price-row .sd-field { flex:1; }
     .sd-margin-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; background:rgba(90,157,111,0.1); color:var(--success); margin-top:4px; }
@@ -2255,7 +2259,7 @@
         <textarea id="sdEditDesc" rows="3" placeholder="Product description for marketplace listings…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:var(--font-ui);color:var(--text);background:var(--surface);outline:none;resize:vertical;transition:border-color 0.15s"></textarea>
       </div>
       <div class="field">
-        <label>Photos <span style="font-size:10px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400">up to 4 total</span></label>
+        <label>Photos <span style="font-size:10px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400">up to 4 total — use ◀ ▶ on a photo to reorder</span></label>
         <div id="sdUploadZone"
           ondragover="event.preventDefault();this.classList.add('sd-upload-hover')"
           ondragleave="this.classList.remove('sd-upload-hover')"
@@ -2269,8 +2273,9 @@
         </div>
         <div id="sdUploadPreviews" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
         <div class="field" style="margin-top:10px;margin-bottom:0">
-          <label style="font-size:10px;letter-spacing:0.06em">Or paste image URLs <span style="font-weight:400;text-transform:none;letter-spacing:0">(one per line)</span></label>
-          <textarea id="sdEditImages" rows="3" placeholder="https://cdn.example.com/image1.jpg&#10;https://cdn.example.com/image2.jpg" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:monospace;color:var(--text2);background:var(--surface);outline:none;resize:vertical;transition:border-color 0.15s"></textarea>
+          <label style="font-size:10px;letter-spacing:0.06em">Or paste image URLs <span style="font-weight:400;text-transform:none;letter-spacing:0">(one per line — Google Drive share links are converted automatically)</span></label>
+          <textarea id="sdEditImages" rows="3" placeholder="https://cdn.example.com/image1.jpg&#10;https://drive.google.com/file/d/…/view?usp=sharing" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:monospace;color:var(--text2);background:var(--surface);outline:none;resize:vertical;transition:border-color 0.15s"></textarea>
+          <button type="button" class="btn btn-outline" style="margin-top:8px;font-size:11px;padding:5px 12px" onclick="addUrlImages()">+ Add URLs to photos</button>
         </div>
       </div>
       <div class="modal-error" id="sdEditError"></div>
@@ -3755,9 +3760,11 @@ function openStyleDetail(code, mode) {
   document.getElementById('sdEditMrp').value    = s.mrp || '';
   document.getElementById('sdEditCp').value     = s.costPrice || '';
   document.getElementById('sdEditDesc').value   = s.description || '';
-  const _allImgs = (s.images||[]).filter(Boolean);
-  _uploadedImages = _allImgs.filter(u => u.startsWith('data:'));
-  document.getElementById('sdEditImages').value = _allImgs.filter(u => !u.startsWith('data:')).join('\n');
+  // All of the style's current photos — uploaded and pasted-URL alike —
+  // live in this one ordered list, so they can all be reordered/removed
+  // together (see the ◀ ▶ controls in renderUploadPreviews()).
+  _uploadedImages = (s.images||[]).filter(Boolean);
+  document.getElementById('sdEditImages').value = '';
   renderUploadPreviews();
   document.querySelectorAll('#sdEditSizes input[type=checkbox]').forEach(cb => {
     cb.checked = (s.sizes||[]).includes(cb.value);
@@ -3794,8 +3801,7 @@ async function uploadStyleImage(file, styleCode) {
 }
 
 async function handleImageFiles(files) {
-  const urlCount = (document.getElementById('sdEditImages').value.split('\n').filter(l => l.trim()).length);
-  const slots = 4 - urlCount - _uploadedImages.length;
+  const slots = 4 - _uploadedImages.length;
   if (slots <= 0) { toast('Maximum 4 images per style.', 'error'); return; }
   for (const file of Array.from(files).slice(0, slots)) {
     if (!file.type.startsWith('image/')) continue;
@@ -3826,15 +3832,54 @@ function removeUploadedImage(idx) {
   renderUploadPreviews();
 }
 
+function moveUploadedImage(idx, dir) {
+  const target = idx + dir;
+  if (target < 0 || target >= _uploadedImages.length) return;
+  [_uploadedImages[idx], _uploadedImages[target]] = [_uploadedImages[target], _uploadedImages[idx]];
+  renderUploadPreviews();
+}
+
 function renderUploadPreviews() {
   const el = document.getElementById('sdUploadPreviews');
   if (!el) return;
+  const last = _uploadedImages.length - 1;
   el.innerHTML = _uploadedImages.map((src, i) =>
     `<div class="sd-upload-thumb">
-      <img src="${src}" alt="Uploaded image ${i+1}">
-      <button type="button" onclick="removeUploadedImage(${i})" title="Remove">✕</button>
+      <img src="${src}" alt="Photo ${i+1}">
+      <button type="button" class="sd-remove-btn" onclick="removeUploadedImage(${i})" title="Remove">✕</button>
+      <div class="sd-upload-thumb-order">
+        <button type="button" class="sd-order-btn" onclick="moveUploadedImage(${i},-1)" title="Move earlier" ${i===0?'disabled':''}>◀</button>
+        <span>${i+1}</span>
+        <button type="button" class="sd-order-btn" onclick="moveUploadedImage(${i},1)" title="Move later" ${i===last?'disabled':''}>▶</button>
+      </div>
     </div>`
   ).join('');
+}
+
+// Google Drive "share" links (drive.google.com/file/d/ID/view or
+// drive.google.com/open?id=ID) render an HTML viewer page, not an image, so
+// they show as broken <img> sources. Convert them to Drive's direct-content
+// URL instead. Passes through unrecognized URLs unchanged.
+function normalizeImageUrl(url) {
+  const fileMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (fileMatch) return `https://drive.google.com/uc?export=view&id=${fileMatch[1]}`;
+  const openMatch = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  if (openMatch) return `https://drive.google.com/uc?export=view&id=${openMatch[1]}`;
+  return url;
+}
+
+// Appends the pasted URLs (one per line) into the same reorderable photo
+// list as uploads, converting Google Drive share links along the way.
+function addUrlImages() {
+  const textarea = document.getElementById('sdEditImages');
+  const urls = textarea.value.split('\n').map(u => u.trim()).filter(Boolean).map(normalizeImageUrl);
+  if (!urls.length) return;
+  const slots = 4 - _uploadedImages.length;
+  if (slots <= 0) { toast('Maximum 4 images per style.', 'error'); return; }
+  _uploadedImages.push(...urls.slice(0, slots));
+  textarea.value = '';
+  renderUploadPreviews();
+  if (urls.length > slots) toast('Only added the first ' + slots + ' — maximum 4 images per style.', 'error');
 }
 
 async function saveStyleEdit() {
@@ -3849,8 +3894,8 @@ async function saveStyleEdit() {
   const mrp         = document.getElementById('sdEditMrp').value.trim();
   const costPrice   = document.getElementById('sdEditCp').value.trim();
   const description = document.getElementById('sdEditDesc').value.trim();
-  const _urlImgs = document.getElementById('sdEditImages').value.split('\n').map(u => u.trim()).filter(Boolean);
-  const images = [..._uploadedImages, ..._urlImgs].slice(0, 4);
+  addUrlImages(); // safety net for any pasted URLs not yet added to the list
+  const images = _uploadedImages.slice(0, 4);
 
   let res;
   try {
