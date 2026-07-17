@@ -1115,6 +1115,9 @@
       <input type="password" id="loginPass" placeholder="••••••••" />
     </div>
     <button class="btn-primary" onclick="doLogin()">Sign in</button>
+    <div style="text-align:center;margin-top:12px">
+      <a href="#" onclick="forgotPassword();return false" style="font-size:12px;color:var(--text3);text-decoration:underline">Forgot password?</a>
+    </div>
     <div class="login-error" id="loginError"></div>
       </div>
     </div>
@@ -2835,6 +2838,27 @@ async function doLogin() {
   const { error } = await sb.auth.signInWithPassword({ email, password: pass });
   if (error) { err.textContent = 'Invalid credentials or inactive account.'; return; }
   // completeLogin() runs from the onAuthStateChange listener below.
+}
+
+// Sends a reset link to whatever email is in the login field (prompts if
+// empty). The link lands back here as a PASSWORD_RECOVERY event — same
+// flow as accepting an invite, handled by the listener below.
+async function forgotPassword() {
+  const err = document.getElementById('loginError');
+  let email = document.getElementById('loginEmail').value.trim();
+  if (!email) email = (window.prompt('Enter your account email:') || '').trim();
+  if (!email) return;
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/desktop.html',
+  });
+  if (error) console.error(error);
+  // Always the same message regardless of outcome — Supabase itself doesn't
+  // reveal whether the email has an account, and neither should this UI, so
+  // it can't be used to probe for valid team emails.
+  err.style.color = 'var(--success)';
+  err.textContent = 'If that email has an account, a reset link has been sent.';
+  setTimeout(() => { err.style.color = ''; }, 5000);
 }
 
 async function doLogout() {

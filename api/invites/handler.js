@@ -24,6 +24,26 @@ module.exports = withErrorHandling(async (req, res) => {
   if (params.length === 0) {
     if (req.method === 'GET') {
       await requireModulePermission(req, 'User Management', 'view');
+
+      // Self-heal: nothing marks an invite "accepted" at the moment someone
+      // finishes onboarding (that happens in their own browser, which has no
+      // permission to touch this admin-gated table). Instead, reconcile
+      // here on every fetch — any pending invite whose auth account has
+      // since been confirmed (they set a password and logged in) no longer
+      // belongs in the pending list.
+      const { data: pending } = await supabaseAdmin
+        .from('invites').select('id, email').eq('status', 'pending');
+      if (pending && pending.length) {
+        const { data: authList } = await supabaseAdmin.auth.admin.listUsers();
+        const confirmedEmails = new Set(
+          (authList?.users || []).filter((u) => u.email_confirmed_at).map((u) => u.email)
+        );
+        const toAccept = pending.filter((i) => confirmedEmails.has(i.email)).map((i) => i.id);
+        if (toAccept.length) {
+          await supabaseAdmin.from('invites').update({ status: 'accepted' }).in('id', toAccept);
+        }
+      }
+
       const { data, error } = await supabaseAdmin
         .from('invites').select('*').eq('status', 'pending').order('invited_at', { ascending: false });
       if (error) throw new HttpError(500, error.message);
