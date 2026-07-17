@@ -1,0 +1,2665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AOBA — User Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <!-- IvyPresto loaded separately; Playfair Display is the approved fallback -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Ivy+Presto:ital,wght@0,400;0,700;1,400&display=swap');
+  </style>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* ── AOBA Brand Palette ── */
+      --bg:          #FFF6E9;   /* Brand Beige */
+      --sidebar:     #111C54;
+      --surface:     #FFFFFF;
+      --surface2:    #FFF9F2;
+      --border:      #EAE0D3;
+      --border2:     #D9CDBE;
+      --accent:      #111C54;   /* Deep Navy – primary action */
+      --accent-bg:   #ECEEF6;   /* Soft navy tint */
+      --text:        #111C54;   /* Deep Navy */
+      --text2:       #4A5270;
+      --text3:       #9096AE;
+      --success:     #5A9D6F;
+      --warn:        #FF8B36;   /* Brand Saffron */
+      --danger:      #B94A3A;
+      --lavender:    #F096FF;   /* Brand Lavender */
+      --pop-green:   #A8F42C;   /* Brand Pop Green */
+      --saffron:     #FF8B36;
+      --banana:      #FFE734;
+      /* ── Typography ── */
+      --font-display: 'Ivy Presto', 'Playfair Display', Georgia, serif;
+      --font-ui:      'DM Sans', sans-serif;
+      --label-size:  11px;
+      --label-ls:    0.08em;
+    }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* ── LOGIN ────────────────────────────────────── */
+    #loginPage {
+      min-height: 100vh;
+      display: flex;
+      background: var(--bg);
+    }
+    .login-split { display: flex; width: 100%; min-height: 100vh; }
+    .login-left {
+      width: 42%; background: var(--accent);
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 56px 52px; color: #fff; position: relative; overflow: hidden;
+      border-radius: 0;
+    }
+    .login-left::after {
+      content: ''; position: absolute; bottom: -80px; right: -80px;
+      width: 320px; height: 320px; border-radius: 50%;
+      background: rgba(240,150,255,0.06); pointer-events: none;
+    }
+    .ll-brand {
+      font-family: var(--font-display); font-size: 80px; font-weight: 400;
+      font-style: italic; color: #fff; line-height: 0.95;
+      letter-spacing: -0.02em; margin-bottom: 10px;
+    }
+    .ll-sub {
+      font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: rgba(255,255,255,0.35); font-family: var(--font-ui);
+    }
+    .ll-palette { display: flex; gap: 8px; margin-bottom: 28px; }
+    .ll-palette span {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .ll-tagline {
+      font-family: var(--font-display); font-size: 26px; font-weight: 400;
+      font-style: italic; color: rgba(255,255,255,0.6); line-height: 1.45;
+    }
+    .ll-foot { font-size: 11px; color: rgba(255,255,255,0.25); letter-spacing: 0.04em; }
+    .login-right {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 60px 56px; background: var(--bg);
+    }
+    .login-box { width: 100%; max-width: 360px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 36px 32px; box-shadow: 0 8px 32px rgba(17,28,84,0.08); }
+    .login-logo-img { display: none; }
+    .login-sub {
+      font-size: var(--label-size); letter-spacing: var(--label-ls);
+      text-transform: uppercase; color: var(--text3); margin-bottom: 32px;
+    }
+    .login-heading { font-family: var(--font-display); font-size: 32px; font-weight: 400; font-style: italic; margin-bottom: 6px; }
+    .login-hint { font-size: 13px; color: var(--text2); margin-bottom: 28px; line-height: 1.6; }
+    .field { margin-bottom: 18px; }
+    .field label { display: block; font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); margin-bottom: 7px; font-weight: 500; }
+    .field input, .field select {
+      width: 100%; padding: 10px 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: var(--font-ui);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); }
+    .field input::placeholder { color: var(--text3); }
+    .btn-primary {
+      width: 100%; padding: 12px;
+      background: var(--text); color: #FFF;
+      border: none; border-radius: 8px;
+      font-size: 12px; font-weight: 500; letter-spacing: 0.08em;
+      cursor: pointer; font-family: var(--font-ui);
+      text-transform: uppercase;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.82; }
+    .login-error { color: var(--danger); font-size: 12px; margin-top: 10px; min-height: 16px; }
+    .login-demo {
+      margin-top: 24px; padding: 12px 14px;
+      background: rgba(17,28,84,0.04); border: 1px solid var(--border);
+      border-radius: 8px; font-size: 12px; color: var(--text2);
+    }
+    .login-demo strong { color: var(--text); }
+
+    /* ── APP SHELL ────────────────────────────────── */
+    #appShell { display: none; height: 100vh; overflow: hidden; }
+    .shell { display: flex; height: 100vh; width: 100%; }
+
+    /* ── SIDEBAR ──────────────────────────────────── */
+    .sidebar {
+      width: 224px; flex-shrink: 0;
+      background: var(--sidebar);
+      border-right: none;
+      display: flex; flex-direction: column;
+    }
+    .sb-logo { padding: 24px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .sb-logo-img { width: 80px; display: block; margin-bottom: 5px; filter: brightness(0) invert(1); opacity: 0.9; }
+    .sb-sub { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.28); font-family: var(--font-ui); }
+    .sb-palette { display: flex; }
+    .sb-palette span { flex: 1; height: 2px; }
+    .sb-nav { flex: 1; padding: 14px 0; overflow-y: auto; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; margin: 0 8px;
+      font-size: 13px; font-weight: 400; color: rgba(255,255,255,0.5);
+      cursor: pointer; transition: color 0.15s, background 0.15s;
+      border-left: none; border-radius: 8px;
+      text-decoration: none;
+    }
+    .nav-item:hover { color: rgba(255,255,255,0.88); background: rgba(255,255,255,0.07); }
+    .nav-item.active { color: #fff; background: rgba(240,150,255,0.15); font-weight: 500; }
+    .nav-item svg { flex-shrink: 0; width: 15px; height: 15px; opacity: 0.7; }
+    .nav-item.active svg { opacity: 1; }
+    .nav-section { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.22); padding: 18px 20px 5px; font-weight: 600; }
+    .sb-footer { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .user-chip { display: flex; align-items: center; gap: 10px; }
+    .user-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: rgba(240,150,255,0.15); color: var(--lavender);
+      border: 1px solid rgba(240,150,255,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; flex-shrink: 0;
+    }
+    .user-name { font-size: 13px; font-weight: 500; color: #fff; }
+    .user-role { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-top: 1px; }
+    .logout-btn { margin-left: auto; background: none; border: none; color: rgba(255,255,255,0.3); cursor: pointer; font-size: 15px; padding: 4px; border-radius: 2px; transition: color 0.15s; }
+    .logout-btn:hover { color: var(--lavender); }
+
+    /* ── MAIN ─────────────────────────────────────── */
+    .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; background: var(--bg); }
+
+    /* ── TOP BAR ──────────────────────────────────── */
+    .topbar {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 52px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .topbar-search {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--text3); font-size: 13px;
+    }
+    .topbar-search input {
+      background: none; border: none; outline: none;
+      font-size: 13px; color: var(--text); font-family: var(--font-ui);
+      width: 240px;
+    }
+    .topbar-search input::placeholder { color: var(--text3); }
+    .topbar-date { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); }
+
+    /* ── PAGE ─────────────────────────────────────── */
+    .page { display: none; flex: 1; padding: 0 32px 32px; }
+    .page.active { display: block; }
+    .page-header { padding: 28px 0 20px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+    .page-label { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+    .page-title { font-family: var(--font-display); font-size: 38px; font-weight: 400; line-height: 1.1; font-style: italic; }
+    .page-header-row { display: flex; align-items: flex-end; justify-content: space-between; }
+    .page-header-right { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); text-align: right; }
+    .page-header-right strong { font-family: var(--font-display); font-size: 28px; font-weight: 400; display: block; color: var(--text); line-height: 1; }
+
+    /* ── BUTTONS ──────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px;
+      font-size: 12px; font-weight: 500; letter-spacing: 0.04em;
+      cursor: pointer; font-family: var(--font-ui);
+      transition: all 0.15s; border: 1px solid transparent;
+      text-transform: uppercase;
+    }
+    .btn-dark { background: var(--text); color: #fff; border-color: var(--text); }
+    .btn-dark:hover { opacity: 0.82; }
+    .btn-outline { background: transparent; color: var(--text); border-color: var(--border2); }
+    .btn-outline:hover { border-color: var(--text); }
+    .btn-danger-outline { background: transparent; color: var(--danger); border-color: rgba(185,74,58,0.3); }
+    .btn-danger-outline:hover { background: rgba(185,74,58,0.06); }
+
+    /* ── STATS ROW ────────────────────────────────── */
+    .snapshot-label { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); margin-bottom: 12px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--border); margin-bottom: 28px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+    .stat-cell {
+      padding: 20px 22px;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+    .stat-cell:last-child { border-right: none; }
+    .stat-cell-label { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+    .stat-cell-val { font-family: var(--font-display); font-size: 36px; font-weight: 400; line-height: 1; }
+    .stat-cell-val.accent { color: var(--accent); }
+    .stat-cell-val.success { color: var(--success); }
+    .stat-cell-val.muted { color: var(--text3); }
+    .stat-cell-dot {
+      position: absolute; bottom: 16px; right: 16px;
+      width: 5px; height: 5px; border-radius: 50%; background: var(--border2);
+    }
+
+    /* ── FILTER BAR ───────────────────────────────── */
+    .filter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-search {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 8px 12px; flex: 1; max-width: 320px; border-radius: 8px;
+    }
+    .filter-search input { background: none; border: none; outline: none; font-size: 13px; color: var(--text); font-family: var(--font-ui); flex: 1; }
+    .filter-search input::placeholder { color: var(--text3); }
+    .filter-select {
+      padding: 8px 12px; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-size: 12px; font-family: var(--font-ui);
+      outline: none; cursor: pointer; border-radius: 8px; letter-spacing: 0.02em;
+    }
+    .filter-select option { background: var(--surface); }
+
+    /* ── TABLE ────────────────────────────────────── */
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { border-bottom: 1px solid var(--border); }
+    th {
+      padding: 11px 16px; text-align: left;
+      font-size: var(--label-size); letter-spacing: var(--label-ls);
+      text-transform: uppercase; color: var(--text3); font-weight: 500;
+    }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+    tr.selected td { background: rgba(192,120,96,0.05); }
+    .user-cell { display: flex; align-items: center; gap: 12px; }
+    .av-sm {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; color: #fff; flex-shrink: 0;
+    }
+    .cell-name { font-weight: 500; font-size: 14px; }
+    .cell-email { font-size: 12px; color: var(--text3); margin-top: 1px; }
+    .role-tag {
+      display: inline-block; padding: 3px 10px;
+      font-size: 11px; letter-spacing: 0.04em; font-weight: 500;
+      border-radius: 9999px;
+    }
+    .status-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; letter-spacing: 0.04em; color: var(--text2);
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .dot-active   { background: var(--success); }
+    .dot-inactive { background: var(--border2); }
+    .last-active  { font-size: 12px; color: var(--text3); }
+    .last-active.recent { color: var(--success); }
+    .row-actions { display: flex; gap: 6px; }
+    .tbl-btn {
+      padding: 5px 10px; border: 1px solid var(--border);
+      background: transparent; font-size: 11px; letter-spacing: 0.04em;
+      color: var(--text2); cursor: pointer; font-family: var(--font-ui);
+      border-radius: 6px; transition: all 0.15s;
+    }
+    .tbl-btn:hover { border-color: var(--text); color: var(--text); }
+    .tbl-btn.del:hover { border-color: rgba(185,74,58,0.4); color: var(--danger); }
+
+    /* ── CHECKBOX ─────────────────────────────────── */
+    .cb-cell { width: 40px; padding: 12px 0 12px 16px !important; }
+    .cb {
+      width: 15px; height: 15px; border: 1.5px solid var(--border2);
+      border-radius: 4px; cursor: pointer; appearance: none;
+      background: var(--surface); display: grid; place-items: center;
+      transition: all 0.15s; flex-shrink: 0;
+    }
+    .cb:checked { background: var(--text); border-color: var(--text); }
+    .cb:checked::after { content: '✓'; color: #fff; font-size: 10px; font-weight: 700; }
+
+    /* ── BULK ACTION BAR ──────────────────────────── */
+    .bulk-bar {
+      display: none; align-items: center; gap: 12px;
+      padding: 10px 16px; background: var(--text); color: #fff;
+      font-size: 12px; margin-bottom: 10px; border-radius: 8px;
+    }
+    .bulk-bar.visible { display: flex; }
+    .bulk-bar-count { font-weight: 600; }
+    .bulk-bar-sep { width: 1px; height: 16px; background: rgba(255,255,255,0.2); }
+    .bulk-btn {
+      padding: 5px 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      color: #fff; font-size: 11px; letter-spacing: 0.04em; cursor: pointer;
+      font-family: var(--font-ui); border-radius: 6px; transition: background 0.15s;
+    }
+    .bulk-btn:hover { background: rgba(255,255,255,0.2); }
+    .bulk-btn.danger { color: #FFB3AE; border-color: rgba(255,179,174,0.3); }
+    .bulk-btn.danger:hover { background: rgba(255,100,80,0.2); }
+    .bulk-cancel { margin-left: auto; background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 16px; padding: 2px 6px; }
+    .bulk-cancel:hover { color: #fff; }
+
+    /* ── PENDING INVITES ──────────────────────────── */
+    .section-divider {
+      display: flex; align-items: center; gap: 14px; margin: 28px 0 16px;
+    }
+    .section-divider-label {
+      font-size: var(--label-size); letter-spacing: var(--label-ls);
+      text-transform: uppercase; color: var(--text3); white-space: nowrap;
+    }
+    .section-divider-line { flex: 1; height: 1px; background: var(--border); }
+    .invite-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--warn); letter-spacing: 0.04em;
+    }
+    .invite-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); flex-shrink: 0; }
+
+    /* ── ROLES PAGE ───────────────────────────────── */
+    .matrix-wrap { background: var(--surface); border: 1px solid var(--border); overflow-x: auto; border-radius: 12px; overflow: hidden; }
+    .matrix-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    .matrix-table th, .matrix-table td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); }
+    .matrix-table tr:last-child td { border-bottom: none; }
+    .matrix-table th:last-child, .matrix-table td:last-child { border-right: none; }
+
+    /* column header (role) */
+    .col-head {
+      padding: 16px 12px 14px; text-align: center; vertical-align: bottom;
+      background: var(--surface2); min-width: 90px;
+    }
+    .col-head .ch-emoji { font-size: 18px; display: block; margin-bottom: 6px; }
+    .col-head .ch-name { font-size: 12px; font-weight: 600; color: var(--text); display: block; line-height: 1.2; }
+    .col-head .ch-count { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text3); display: block; margin-top: 3px; }
+
+    /* row header (permission) */
+    .row-head {
+      padding: 11px 16px; text-align: left; font-size: 12px;
+      font-weight: 500; color: var(--text2); background: var(--surface);
+      white-space: nowrap; min-width: 130px;
+    }
+    .row-head-label { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); background: var(--surface2); }
+
+    /* check cell */
+    .check-cell { text-align: center; padding: 10px 8px; transition: background 0.15s; }
+    .check-cell.editable { cursor: pointer; }
+    .check-cell.editable:hover { background: var(--surface2); }
+    .check-cell.changed { background: rgba(192,120,96,0.07); }
+    .check-cell.changed:hover { background: rgba(192,120,96,0.13); }
+    .perm-edit, .perm-view { transition: all 0.15s; }
+    .mtx-save-bar {
+      display: none; align-items: center; gap: 10px;
+      padding: 10px 16px; background: var(--accent-bg);
+      border: 1px solid rgba(192,120,96,0.25); margin-bottom: 14px;
+      font-size: 12px; color: var(--accent);
+    }
+    .mtx-save-bar.visible { display: flex; }
+    .mtx-save-count { font-weight: 600; flex: 1; }
+    .mtx-save-btn {
+      padding: 5px 14px; background: var(--accent); color: #fff;
+      border: none; font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; cursor: pointer; font-family: var(--font-ui);
+      border-radius: 6px; transition: opacity 0.15s;
+    }
+    .mtx-save-btn:hover { opacity: 0.85; }
+    .mtx-reset-btn {
+      padding: 5px 14px; background: transparent; color: var(--text2);
+      border: 1px solid var(--border2); font-size: 11px; letter-spacing: 0.04em;
+      cursor: pointer; font-family: var(--font-ui); border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .mtx-reset-btn:hover { border-color: var(--text); color: var(--text); }
+    .check-yes {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(90,157,111,0.12); color: var(--success); font-size: 13px; font-weight: 600;
+    }
+    .perm-edit {
+      display: inline-block; padding: 2px 9px;
+      background: rgba(90,157,111,0.13); color: var(--success);
+      font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 6px;
+    }
+    .perm-view {
+      display: inline-block; padding: 2px 9px;
+      background: rgba(26,79,122,0.09); color: #1A4F7A;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 6px;
+    }
+    .twofa-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+    }
+    .twofa-on  { background: rgba(90,157,111,0.1); color: var(--success); }
+    .twofa-off { background: rgba(184,134,42,0.1); color: var(--warn); }
+    .check-no {
+      display: inline-block; width: 14px; height: 1px;
+      background: var(--border2); border-radius: 1px;
+    }
+
+    /* matrix section divider row */
+    .mtx-section-row td, .mtx-section-row th {
+      padding: 6px 16px; background: var(--surface2);
+      font-size: var(--label-size); letter-spacing: var(--label-ls);
+      text-transform: uppercase; color: var(--text3); font-weight: 500;
+      border-top: 2px solid var(--border2);
+    }
+    /* matrix legend */
+    .matrix-legend {
+      display: flex; align-items: center; gap: 18px;
+      margin-top: 14px; font-size: 12px; color: var(--text3);
+    }
+    .matrix-legend span { display: flex; align-items: center; gap: 7px; }
+    /* role summary cards below matrix */
+    .role-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    .role-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 14px; background: var(--surface); border: 1px solid var(--border);
+      font-size: 12px; font-weight: 500; border-radius: 8px;
+    }
+    .role-chip-emoji { font-size: 16px; }
+    .role-chip-name { color: var(--text); }
+    .role-chip-count { font-size: 11px; color: var(--text3); margin-left: 2px; }
+
+    /* ── MODAL ────────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(26,23,20,0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 30px 28px 24px; width: 100%; max-width: 460px;
+      transform: translateY(8px); transition: transform 0.2s;
+      border-radius: 20px; box-shadow: 0 24px 64px rgba(17,28,84,0.14);
+    }
+    .overlay.open .modal { transform: translateY(0); }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+    .modal-title { font-family: var(--font-display); font-size: 22px; font-weight: 400; }
+    .modal-close { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 18px; padding: 4px; border-radius: 6px; }
+    .modal-close:hover { color: var(--text); }
+    .modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+    .modal-error { color: var(--danger); font-size: 12px; min-height: 16px; margin-top: 6px; }
+
+    /* ── DASHBOARD ───────────────────────────────── */
+    .dash-header-row { display: flex; align-items: flex-start; justify-content: space-between; padding: 28px 32px 0; }
+    .dash-founder-label { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+    .dash-heading { font-family: var(--font-display); font-size: 48px; font-weight: 400; line-height: 1.1; color: var(--text); font-style: italic; }
+    .dash-quality { text-align: right; }
+    .dash-quality-label { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); margin-bottom: 4px; }
+    .dash-quality-val { font-family: var(--font-display); font-size: 32px; font-weight: 400; color: var(--text); }
+    .dash-quality-val sup { font-size: 14px; }
+    .dash-divider { border: none; border-top: 1px solid var(--border); margin: 20px 32px; }
+    .dash-snapshot-label { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); padding: 0 32px; margin-bottom: 12px; }
+    .dash-grid { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0 32px 32px; border-left: 1px solid var(--border); border-top: 1px solid var(--border); }
+    .dash-cell { background: var(--surface); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 18px 20px 16px; position: relative; min-height: 90px; }
+    .dash-cell-label { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+    .dash-cell-val { font-family: var(--font-display); font-size: 38px; font-weight: 400; line-height: 1; color: var(--text); }
+    .dash-cell-dot { position: absolute; bottom: 10px; right: 10px; width: 6px; height: 6px; border-radius: 50%; background: var(--border2); }
+    .dash-cell-dot.red { background: var(--danger); }
+    .dash-cell-dot.green { background: var(--success); }
+    .dash-section-label { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); margin-bottom: 14px; font-weight: 500; }
+    .prefix-table th { white-space: nowrap; }
+    .prefix-bar-wrap { width: 100%; max-width: 120px; height: 4px; background: var(--border); border-radius: 2px; }
+    .prefix-bar { height: 4px; border-radius: 2px; }
+
+    /* ── STYLES / LISTINGS ───────────────────────── */
+    .cat-overview { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .cat-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 2px; cursor: pointer;
+      border: 1px solid transparent; transition: all 0.15s; font-size: 12px;
+    }
+    .cat-chip:hover { opacity: 0.75; }
+    .cat-chip.active { border-color: currentColor !important; box-shadow: 0 0 0 1px currentColor; }
+    .cat-chip-code { font-weight: 700; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .cat-chip-name { opacity: 0.82; font-size: 11px; }
+    .cat-chip-count { background: rgba(255,255,255,0.55); padding: 1px 5px; border-radius: 1px; font-size: 10px; font-weight: 600; }
+    .style-code { font-family: 'DM Mono', 'Courier New', monospace; font-size: 11px; color: var(--text3); letter-spacing: 0.04em; }
+    .cat-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 2px; font-size: 11px; font-weight: 600; }
+    .cat-badge-code { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75; }
+    .sku-count { display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 50%; font-size: 11px; font-weight: 600; color: var(--text2); }
+    .lst-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 2px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+    .lst-live    { background: rgba(90,157,111,0.1); color: var(--success); }
+    .lst-pending { background: rgba(184,134,42,0.1); color: var(--warn); }
+    .lst-draft   { background: rgba(122,110,104,0.1); color: var(--text2); }
+    .mkt-tag { display: inline-flex; padding: 2px 8px; border-radius: 2px; font-size: 11px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); font-weight: 500; }
+    .price-cell { font-family: var(--font-display); font-size: 15px; color: var(--text); }
+
+    /* ── CONFIRM ──────────────────────────────────── */
+    .confirm-box {
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 24px; width: 100%; max-width: 340px;
+      border-radius: 16px; box-shadow: 0 16px 48px rgba(17,28,84,0.12);
+    }
+    .confirm-box h4 { font-family: var(--font-display); font-size: 20px; font-weight: 400; margin-bottom: 8px; }
+    .confirm-box p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+    .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+    /* ── TOAST ────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 22px; right: 22px;
+      background: var(--text); color: #fff;
+      border-left: 3px solid var(--accent);
+      padding: 11px 18px; font-size: 13px; z-index: 200;
+      transform: translateX(130%); transition: transform 0.3s;
+      border-radius: 8px;
+    }
+    .toast.show { transform: translateX(0); }
+    .toast.success { border-left-color: var(--success); }
+    .toast.danger  { border-left-color: var(--danger); }
+
+    /* ── PLACEHOLDER ──────────────────────────────── */
+    .placeholder { text-align: center; padding: 80px 20px; color: var(--text3); }
+    .placeholder .ph-title { font-family: var(--font-display); font-size: 28px; font-weight: 400; color: var(--text); margin-bottom: 8px; }
+    .placeholder p { font-size: 13px; }
+
+    /* ── EMPTY STATE ──────────────────────────────── */
+    .empty-state { padding: 40px; text-align: center; color: var(--text3); font-size: 13px; }
+
+    /* ── REPORTS PAGE ────────────────────────────── */
+    .report-tabs { display: flex; border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .report-tab {
+      padding: 10px 15px; font-size: 11px; font-weight: 500; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--text3); cursor: pointer; white-space: nowrap;
+      border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .report-tab:hover { color: var(--text2); }
+    .report-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .tab-count { padding: 1px 5px; border-radius: 2px; font-size: 9px; font-weight: 700; background: var(--surface2); color: var(--text3); }
+    .tab-count-warn { background: rgba(185,74,58,0.12); color: var(--danger); }
+    .report-content { padding: 20px 0; }
+    .report-info { font-size: 12px; color: var(--text2); margin-bottom: 16px; padding: 9px 14px; background: var(--surface2); border-left: 3px solid var(--border2); }
+
+    /* ── TYPE / SKU TAGS ──────────────────────────── */
+    .type-tag { display: inline-flex; padding: 2px 9px; border-radius: 2px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+    .type-master    { background: rgba(17,28,84,0.08); color: var(--accent); }
+    .type-relisting { background: rgba(240,150,255,0.15); color: #8A3A9A; }
+    .aoba-sku-tag { font-family: 'DM Mono','Courier New',monospace; font-size: 11px; color: var(--text); background: var(--surface2); border: 1px solid var(--border); padding: 1px 6px; border-radius: 2px; letter-spacing: 0.04em; }
+    .url-link { color: var(--text3); font-size: 14px; text-decoration: none; transition: color 0.15s; }
+    .url-link:hover { color: var(--accent); }
+
+    /* ── GROUP TAG & COLOR DOTS ───────────────────── */
+    .grp-tag { display: inline-block; padding: 1px 6px; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(17,28,84,0.08); color: var(--accent); border-radius: 2px; margin-left: 4px; vertical-align: middle; }
+    .color-dots { display: flex; gap: 3px; flex-wrap: wrap; }
+    .color-dot { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 9px; font-weight: 700; flex-shrink: 0; }
+
+    /* ── NEW STYLE MODAL ──────────────────────────── */
+    .group-info-badge { font-size: 11px; color: var(--text2); padding: 8px 12px; background: var(--accent-bg); border: 1px solid rgba(17,28,84,0.15); line-height: 1.5; }
+    .color-picker-wrap { border: 1px solid var(--border); padding: 10px 12px; background: var(--surface2); border-radius: 2px; min-height: 60px; }
+    .color-picker-chips { display: flex; gap: 6px; flex-wrap: wrap; min-height: 26px; margin-bottom: 8px; }
+    .color-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; border-radius: 2px; }
+    .color-chip-remove { background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 11px; padding: 0; line-height: 1; transition: color 0.15s; }
+    .color-chip-remove:hover { color: #fff; }
+    .color-add-btn { padding: 3px 8px; background: transparent; border: 1px dashed var(--border2); font-size: 11px; color: var(--text2); cursor: pointer; font-family: var(--font-ui); border-radius: 2px; transition: all 0.15s; }
+    .color-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .size-picker-wrap { display: flex; gap: 8px; flex-wrap: wrap; border: 1px solid var(--border); padding: 10px 12px; background: var(--surface2); border-radius: 2px; }
+    .size-cb-label { display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; user-select: none; }
+    .ns-code-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--accent-bg); border: 1px solid rgba(17,28,84,0.15); margin: 16px 0 0; }
+    .ns-code-label { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); }
+    .ns-code-val { font-family: var(--font-display); font-size: 26px; font-weight: 400; color: var(--text); }
+    .ns-sku-label { font-size: var(--label-size); letter-spacing: var(--label-ls); text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+    .ns-sku-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* ── SCROLLBAR ────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+    /* ── NOTICE BANNER ────────────────────────────── */
+    .notice {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; background: rgba(192,120,96,0.08);
+      border: 1px solid rgba(192,120,96,0.2);
+      font-size: 12px; color: var(--text2); margin-bottom: 20px;
+    }
+    .notice-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+    /* ── REDESIGN OVERRIDES — skill-guided polish ────── */
+
+    /* 1 · GRAIN TEXTURE — breaks digital flatness */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 9998;
+      opacity: 0.032;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px 180px;
+    }
+
+    /* 2 · TYPOGRAPHY — tighten large headings, balance wrapping */
+    .page-title { letter-spacing: -0.02em; text-wrap: balance; }
+    .dash-heading { letter-spacing: -0.025em; text-wrap: balance; }
+    .ll-brand { letter-spacing: -0.03em; }
+    .ll-tagline { text-wrap: balance; }
+    .modal-title { font-style: italic; text-wrap: balance; }
+    .confirm-box h4 { font-style: italic; text-wrap: balance; }
+    .login-heading { letter-spacing: -0.01em; }
+
+    /* tabular-nums so data columns align */
+    .dash-cell-val, .stat-cell-val, .page-header-right strong {
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-cell-val { font-style: italic; }
+    .dash-cell-val { font-style: italic; }
+    .dash-quality-val { font-style: italic; }
+    .page-header-right strong { font-style: italic; }
+
+    /* tighten label tracking */
+    .stat-cell-label, .dash-cell-label { letter-spacing: 0.1em; font-weight: 600; }
+
+    /* 3 · SMOOTH SCROLL */
+    html { scroll-behavior: smooth; }
+
+    /* 4 · BUTTON INTERACTIONS — lift + press feedback */
+    .btn { letter-spacing: 0.06em; transition: all 0.15s; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-primary:active { transform: scale(0.98); opacity: 1; }
+    .btn-dark:hover { opacity: 0.85; }
+    .btn-dark:active { transform: scale(0.97); }
+    .btn-outline:hover { border-color: var(--text); background: rgba(17,28,84,0.03); }
+
+    /* 5 · PULSING LIVE DOT — makes active users feel alive */
+    @keyframes pulse-live {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(90,157,111,0.5); }
+      60%       { box-shadow: 0 0 0 4px rgba(90,157,111,0); }
+    }
+    .dot-active { animation: pulse-live 2.5s ease-in-out infinite; }
+
+    /* 6 · SIDEBAR WORDMARK */
+    .sb-wordmark {
+      font-family: var(--font-display);
+      font-size: 22px; font-weight: 400; font-style: italic;
+      color: #fff; letter-spacing: -0.02em; line-height: 1;
+      margin-bottom: 3px;
+    }
+
+    /* 7 · NAV ACTIVE — lavender left-border indicator */
+    .nav-item { border-left: 2px solid transparent; transition: color 0.15s, background 0.15s, border-color 0.15s; }
+    .nav-item:hover { color: rgba(255,255,255,0.88); background: rgba(255,255,255,0.06); }
+    .nav-item.active {
+      color: #fff; background: rgba(240,150,255,0.1);
+      border-left-color: var(--lavender); font-weight: 500;
+    }
+    .nav-item.active svg { opacity: 1; }
+
+    /* 8 · LOGIN WORDMARK */
+    .login-wordmark {
+      font-family: var(--font-display);
+      font-size: 28px; font-weight: 400; font-style: italic;
+      color: var(--text); letter-spacing: -0.02em;
+      line-height: 1; margin-bottom: 4px;
+    }
+
+    /* 9 · FOCUS STATES — lavender ring instead of generic outline */
+    .field input:focus, .field select:focus {
+      border-color: var(--lavender);
+      box-shadow: 0 0 0 3px rgba(240,150,255,0.18);
+    }
+    button:focus-visible {
+      outline: 2px solid var(--lavender);
+      outline-offset: 2px;
+    }
+
+    /* 10 · TOPBAR SEARCH — contained search pill */
+    .topbar-search {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: 8px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .topbar-search:focus-within {
+      border-color: var(--lavender);
+      box-shadow: 0 0 0 3px rgba(240,150,255,0.12);
+    }
+    .topbar { box-shadow: 0 1px 0 var(--border); }
+
+    /* 11 · SHADOWS — hue-tinted, not generic black */
+    .login-box {
+      box-shadow: 0 8px 40px rgba(17,28,84,0.08), 0 1px 3px rgba(17,28,84,0.04);
+    }
+    .modal {
+      box-shadow: 0 24px 64px rgba(17,28,84,0.12), 0 4px 12px rgba(17,28,84,0.05);
+    }
+    .table-wrap {
+      box-shadow: 0 1px 4px rgba(17,28,84,0.06), 0 0 0 1px rgba(17,28,84,0.04);
+      border: none;
+    }
+
+    /* 12 · TABLE ROW — warm hover, smooth transition */
+    tr { transition: background 0.1s; }
+    tr:hover td { background: rgba(255,246,233,0.7); }
+
+    /* 13 · DASHBOARD CELLS — brand palette top accents */
+    .dash-cell:nth-child(4n+1) { box-shadow: inset 0 3px 0 var(--lavender); }
+    .dash-cell:nth-child(4n+2) { box-shadow: inset 0 3px 0 var(--pop-green); }
+    .dash-cell:nth-child(4n+3) { box-shadow: inset 0 3px 0 var(--saffron); }
+    .dash-cell:nth-child(4n+4) { box-shadow: inset 0 3px 0 var(--banana); }
+
+    /* 14 · REPORT TAB — lavender active underline */
+    .report-tab { padding: 12px 16px; }
+    .report-tab.active { color: var(--text); border-bottom-color: var(--lavender); }
+    .report-tab:active { transform: scale(0.98); }
+
+    /* 15 · CATEGORY CHIPS */
+    .cat-chip { border-radius: 2px; font-weight: 500; }
+    .cat-chip:active { transform: scale(0.97); }
+
+    /* 16 · MODAL + TABLE BUTTONS — press feedback */
+    .tbl-btn:active { transform: scale(0.97); }
+    .modal-close {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; transition: background 0.15s, color 0.15s;
+    }
+    .modal-close:hover { background: var(--surface2); color: var(--text); }
+
+    /* 17 · LOGOUT BUTTON */
+    .logout-btn {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; transition: background 0.15s, color 0.15s;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,0.08); color: var(--lavender); }
+
+    /* 18 · SIDEBAR PALETTE STRIP — slightly thicker */
+    .sb-palette { height: 3px; }
+
+    /* 19 · STATS GRID — no border, only shadow */
+    .stats-grid { border: none; box-shadow: 0 1px 4px rgba(17,28,84,0.06); }
+
+    /* 20 · LOGIN PAGE — warmer left panel decoration */
+    .login-left::before {
+      content: '';
+      position: absolute; top: -60px; left: -60px;
+      width: 280px; height: 280px; border-radius: 50%;
+      background: rgba(168,244,44,0.04);
+      pointer-events: none;
+    }
+
+    /* 21 · MATRIX WRAP */
+    .matrix-wrap { box-shadow: 0 1px 4px rgba(17,28,84,0.06); border: none; }
+
+    /* 22 · AOBA SKU TAG — monospace refined */
+    .aoba-sku-tag { letter-spacing: 0.05em; }
+
+    /* 23 · SIDEBAR FOOTER BORDER */
+    .sb-footer { border-top: 1px solid rgba(255,255,255,0.07); }
+
+    /* 24 · TOAST — refined border accent */
+    .toast { border-left-width: 3px; border-radius: 6px; }
+
+    /* 25 · PAGE HEADER RIGHT count */
+    .page-header-right strong { font-size: 30px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══════════════════════════════════════════════════════════ -->
+<div id="loginPage">
+  <div class="login-split">
+    <div class="login-left">
+      <div>
+        <div class="ll-brand">AOBA</div>
+        <div class="ll-sub">Product Master OS</div>
+      </div>
+      <div>
+        <div class="ll-palette">
+          <span style="background:#F096FF"></span>
+          <span style="background:#FF8B36"></span>
+          <span style="background:#A8F42C"></span>
+          <span style="background:#FFE734"></span>
+          <span style="background:rgba(255,255,255,0.15)"></span>
+        </div>
+        <p class="ll-tagline">Every stitch,<br>every size,<br>every sale.</p>
+      </div>
+      <div class="ll-foot">Internal catalog control — AOBA team only.</div>
+    </div>
+    <div class="login-right">
+      <div class="login-box">
+    <div class="login-wordmark">AOBA</div>
+    <div class="login-sub">Product Master OS</div>
+    <div class="login-heading">Sign in to continue</div>
+    <p class="login-hint">Authentication is required to access this system.</p>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="••••••••" />
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Sign in</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-demo">
+      Demo &rarr; <strong>admin@aoba.com</strong> / <strong>admin123</strong>
+    </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP SHELL ════════════════════════════════════════════════════════ -->
+<div id="appShell">
+  <div class="shell">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sb-logo">
+        <div class="sb-wordmark">AOBA</div>
+        <div class="sb-sub">Product Master OS</div>
+      </div>
+      <div class="sb-palette">
+        <span style="background:#F096FF"></span>
+        <span style="background:#FF8B36"></span>
+        <span style="background:#A8F42C"></span>
+        <span style="background:#FFE734"></span>
+        <span style="background:rgba(255,255,255,0.12)"></span>
+      </div>
+      <nav class="sb-nav">
+        <div class="nav-section">Main</div>
+        <a class="nav-item" onclick="showPage('dashboard')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="0.5"/><rect x="14" y="3" width="7" height="7" rx="0.5"/><rect x="3" y="14" width="7" height="7" rx="0.5"/><rect x="14" y="14" width="7" height="7" rx="0.5"/></svg>
+          Dashboard
+        </a>
+        <a class="nav-item" onclick="showPage('styles')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h10"/></svg>
+          Styles
+        </a>
+        <a class="nav-item" onclick="showPage('listings')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Listings
+        </a>
+        <a class="nav-item" onclick="showPage('ean')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="6" width="2" height="12"/><rect x="7" y="6" width="1" height="12"/><rect x="10" y="6" width="2" height="12"/><rect x="14" y="6" width="1" height="12"/><rect x="17" y="6" width="2" height="12"/><rect x="21" y="6" width="1" height="12"/></svg>
+          EAN / Barcode
+        </a>
+        <a class="nav-item" onclick="showPage('reports')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Reports
+        </a>
+        <a class="nav-item" onclick="showPage('search')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search
+        </a>
+        <a class="nav-item" onclick="showPage('audit')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Audit Trail
+        </a>
+        <a class="nav-item" onclick="showPage('ai')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20 10 10 0 010-20z"/><path d="M12 8v4l3 3"/></svg>
+          AI Copilot
+        </a>
+        <a class="nav-item" onclick="showPage('import')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Import
+        </a>
+        <div class="nav-section">Admin</div>
+        <a class="nav-item active" onclick="showPage('users')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          User Management
+        </a>
+        <a class="nav-item" onclick="showPage('users');showUmTab('permissions')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Roles & Permissions
+        </a>
+        <a class="nav-item" onclick="showPage('settings')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          Settings
+        </a>
+        <a class="nav-item" onclick="showPage('guide')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+          Guide
+        </a>
+      </nav>
+      <div class="sb-footer">
+        <div class="user-chip">
+          <div class="user-avatar" id="sbAvatar">A</div>
+          <div>
+            <div class="user-name" id="sbName">Admin</div>
+            <div class="user-role" id="sbRole">Founder</div>
+          </div>
+          <button class="logout-btn" onclick="doLogout()" title="Sign out">↪</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="topbar">
+        <div class="topbar-search">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Search SKU, Style, EAN, Marketplace ID…" readonly />
+        </div>
+        <div class="topbar-date" id="topbarDate"></div>
+      </div>
+
+      <!-- ── USERS ── -->
+      <div id="page-users" class="page active">
+        <div class="page-header">
+          <div class="page-header-row">
+            <div>
+              <div class="page-label">User Management</div>
+              <div class="page-title">Your team & access.</div>
+            </div>
+            <div class="page-header-right">
+              Users
+              <strong id="hdrTotal">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab navigation (mirrors real Aaoba app) -->
+        <div class="um-tab-bar">
+          <nav class="um-tab-nav">
+            <button class="um-tab-btn active" onclick="showUmTab('members')">Team Members</button>
+            <button class="um-tab-btn" onclick="showUmTab('permissions')">Roles & Permissions</button>
+          </nav>
+        </div>
+
+        <!-- ── Members Tab ── -->
+        <div id="umTab-members">
+
+        <div class="snapshot-label">Team Snapshot</div>
+        <div class="stats-grid">
+          <div class="stat-cell">
+            <div class="stat-cell-label">Total Users</div>
+            <div class="stat-cell-val" id="statTotal">0</div>
+            <div class="stat-cell-dot"></div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-cell-label">Active</div>
+            <div class="stat-cell-val success" id="statActive">0</div>
+            <div class="stat-cell-dot"></div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-cell-label">Roles Defined</div>
+            <div class="stat-cell-val accent">8</div>
+            <div class="stat-cell-dot"></div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-cell-label">Inactive</div>
+            <div class="stat-cell-val muted" id="statInactive">0</div>
+            <div class="stat-cell-dot"></div>
+          </div>
+        </div>
+
+        <div class="filter-row">
+          <div class="filter-search">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="Search name or email…" oninput="renderTable()" />
+          </div>
+          <select class="filter-select" id="roleFilter" onchange="renderTable()">
+            <option value="">All Roles</option>
+            <option>Founder</option><option>Admin</option>
+            <option>Merchandising</option><option>Catalog Team</option>
+            <option>Marketplace Team</option><option>Designer</option>
+            <option>Accounts</option><option>Warehouse</option>
+          </select>
+          <select class="filter-select" id="statusFilter" onchange="renderTable()">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn btn-outline" onclick="openInvite()">✉ Invite</button>
+            <button class="btn btn-dark" onclick="openAdd()">+ Add User</button>
+          </div>
+        </div>
+
+        <!-- Bulk action bar -->
+        <div class="bulk-bar" id="bulkBar">
+          <span class="bulk-bar-count" id="bulkCount"></span>
+          <span class="bulk-bar-sep"></span>
+          <button class="bulk-btn" onclick="bulkActivate()">Activate</button>
+          <button class="bulk-btn" onclick="bulkDeactivate()">Deactivate</button>
+          <button class="bulk-btn danger" onclick="bulkRemove()">Remove</button>
+          <button class="bulk-cancel" onclick="clearSelection()" title="Clear selection">✕</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="cb-cell"><input type="checkbox" class="cb" id="selectAllCb" onchange="toggleSelectAll(this.checked)"></th>
+                <th>User</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>2FA</th>
+                <th>Last Active</th>
+                <th>Added</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+          <div id="emptyRow" class="empty-state" style="display:none">No users match your filters.</div>
+        </div>
+
+        <!-- Pending Invites section -->
+        <div id="pendingSection" style="display:none">
+          <div class="section-divider">
+            <span class="section-divider-label">Pending Invites</span>
+            <span class="section-divider-line"></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Invited</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="inviteTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        </div><!-- /umTab-members -->
+
+        <!-- ── Permissions Tab ── -->
+        <div id="umTab-permissions" style="display:none">
+          <div class="notice">
+            <div class="notice-dot"></div>
+            Click any cell to toggle <strong>Edit → View → No access</strong>. Changes are highlighted. Save when done.
+          </div>
+          <div class="mtx-save-bar" id="mtxSaveBar2">
+            <span class="mtx-save-count" id="mtxSaveCount2"></span>
+            <button class="mtx-reset-btn" onclick="resetPerms()">Reset to default</button>
+            <button class="mtx-save-btn" onclick="savePerms()">Save permissions</button>
+          </div>
+          <div class="perm-layout">
+            <div class="perm-role-sidebar">
+              <div class="perm-role-sidebar-head">Roles</div>
+              <div class="perm-role-list" id="permRoleSidebar"></div>
+            </div>
+            <div class="perm-role-content">
+              <div class="perm-content-card">
+                <div class="perm-content-head">
+                  <div class="perm-content-head-left">
+                    <h3 id="permRoleName">Founder</h3>
+                    <p id="permRoleStats">All permissions enabled</p>
+                  </div>
+                  <div class="perm-save-row">
+                    <span class="perm-saved-label" id="permSavedLabel" style="display:none">Saved</span>
+                    <button class="btn btn-dark" onclick="saveCurrentRolePerms()" id="permSaveBtn" style="padding:6px 14px;font-size:12px">Save changes</button>
+                  </div>
+                </div>
+                <div class="perm-notice-bar">
+                  All roles currently have full admin access. Uncheck permissions below to restrict a role.
+                </div>
+                <div class="perm-body" id="permCheckboxBody"></div>
+              </div>
+            </div>
+          </div>
+        </div><!-- /umTab-permissions -->
+
+      </div><!-- /page-users -->
+
+      <!-- ── ROLES (legacy, hidden) ── -->
+      <div id="page-roles" class="page" style="display:none!important">
+        <div class="page-header">
+          <div class="page-label">Permissions</div>
+          <div class="page-title">Roles & access control.</div>
+        </div>
+        <div class="notice">
+          <div class="notice-dot"></div>
+          Click any cell to toggle <strong>Edit → View → No access</strong>. Changes are highlighted. Save when done.
+        </div>
+        <div class="mtx-save-bar" id="mtxSaveBar">
+          <span class="mtx-save-count" id="mtxSaveCount"></span>
+          <button class="mtx-reset-btn" onclick="resetPerms()">Reset to default</button>
+          <button class="mtx-save-btn" onclick="savePerms()">Save permissions</button>
+        </div>
+        <div class="matrix-wrap">
+          <table class="matrix-table" id="matrixTable"></table>
+        </div>
+        <div class="role-chips" id="roleChips"></div>
+      </div>
+
+      <!-- ── PLACEHOLDER PAGES ── -->
+      <!-- ── DASHBOARD ── -->
+      <div id="page-dashboard" class="page" style="padding:0">
+        <!-- topbar already handles search/date -->
+        <div class="dash-header-row">
+          <div>
+            <div class="dash-founder-label">Founder Control Center</div>
+            <div class="dash-heading">The state of your catalog.</div>
+          </div>
+          <div class="dash-quality">
+            <div class="dash-quality-label">Data Quality</div>
+            <div class="dash-quality-val"><span id="dashQuality">—</span><sup>%</sup></div>
+          </div>
+        </div>
+        <hr class="dash-divider" />
+
+        <div class="dash-snapshot-label">Catalog Snapshot</div>
+        <div class="dash-grid">
+          <div class="dash-cell"><div class="dash-cell-label">Total Styles</div><div class="dash-cell-val" id="dashTotalStyles">0</div><div class="dash-cell-dot"></div></div>
+          <div class="dash-cell"><div class="dash-cell-label">Total SKUs</div><div class="dash-cell-val" id="dashTotalSkus">0</div><div class="dash-cell-dot"></div></div>
+          <div class="dash-cell"><div class="dash-cell-label">Active</div><div class="dash-cell-val" id="dashActive">0</div><div class="dash-cell-dot green"></div></div>
+          <div class="dash-cell"><div class="dash-cell-label">Live</div><div class="dash-cell-val" id="dashLive">0</div><div class="dash-cell-dot green"></div></div>
+
+          <div class="dash-cell"><div class="dash-cell-label">Inactive</div><div class="dash-cell-val" id="dashInactive">0</div><div class="dash-cell-dot"></div></div>
+          <div class="dash-cell"><div class="dash-cell-label">Ready for Launch</div><div class="dash-cell-val" id="dashReady">0</div><div class="dash-cell-dot"></div></div>
+          <div class="dash-cell"><div class="dash-cell-label">Launched (This Mo.)</div><div class="dash-cell-val" id="dashLaunched">0</div><div class="dash-cell-dot green"></div></div>
+          <div class="dash-cell"><div class="dash-cell-label">Pending Photoshoot</div><div class="dash-cell-val" id="dashPhotoshoot">0</div><div class="dash-cell-dot red"></div></div>
+
+          <div class="dash-cell"><div class="dash-cell-label">Pending Costing</div><div class="dash-cell-val" id="dashCosting">0</div><div class="dash-cell-dot red"></div></div>
+          <div class="dash-cell"><div class="dash-cell-label">Missing EANs</div><div class="dash-cell-val" id="dashEans">0</div><div class="dash-cell-dot red"></div></div>
+          <div class="dash-cell"><div class="dash-cell-label">Missing Images</div><div class="dash-cell-val" id="dashImages">0</div><div class="dash-cell-dot red"></div></div>
+          <div class="dash-cell"><div class="dash-cell-label">Data Quality</div><div class="dash-cell-val" id="dashQuality2">—<span style="font-size:18px">%</span></div><div class="dash-cell-dot"></div></div>
+        </div>
+
+        <div style="padding:0 32px">
+          <div class="dash-section-label">Categories by Prefix</div>
+          <div class="table-wrap" style="margin-bottom:32px">
+            <table class="prefix-table">
+              <thead><tr>
+                <th>Prefix</th><th>Category</th><th>Styles</th><th>Total SKUs</th>
+                <th>Live</th><th>Pending</th><th>Draft</th><th style="width:140px">SKU Coverage</th>
+              </tr></thead>
+              <tbody id="dashCatTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- ── STYLES ── -->
+      <div id="page-styles" class="page">
+        <div class="page-header">
+          <div class="page-header-row">
+            <div>
+              <div class="page-label">Style Master</div>
+              <div class="page-title">Every style we've ever drawn.</div>
+            </div>
+            <div class="page-header-right">Styles <strong id="stylesTotalHdr">0</strong></div>
+          </div>
+        </div>
+        <div class="cat-overview" id="stylesCatChips"></div>
+        <div class="filter-row">
+          <div class="filter-search">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="stylesSearch" placeholder="Search style code or name…" oninput="renderStyles()" />
+          </div>
+          <select class="filter-select" id="stylesCatFilter" onchange="renderStyles()">
+            <option value="">All Categories</option>
+          </select>
+          <select class="filter-select" id="stylesStatusFilter" onchange="renderStyles()">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          <div style="margin-left:auto"><button class="btn btn-dark" onclick="openNewStyle()">+ New Style</button></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Style Code</th><th>Category</th><th>Name</th><th>Colors</th><th>Sizes</th><th>SKUs</th><th>Status</th><th>Created</th><th></th>
+            </tr></thead>
+            <tbody id="stylesTbody"></tbody>
+          </table>
+          <div id="stylesEmpty" class="empty-state" style="display:none">No styles match your filters.</div>
+        </div>
+      </div>
+
+      <!-- ── LISTINGS ── -->
+      <div id="page-listings" class="page">
+        <div class="page-header">
+          <div class="page-header-row">
+            <div>
+              <div class="page-label">Marketplace Mapping</div>
+              <div class="page-title">Every listing &amp; relisting.</div>
+            </div>
+            <div class="page-header-right">Listings <strong id="listingsTotalHdr">0</strong></div>
+          </div>
+        </div>
+        <div class="cat-overview" id="listingsCatChips"></div>
+        <div class="filter-row">
+          <div class="filter-search">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="listingsSearch" placeholder="Search AOBA SKU, Mkt SKU or style…" oninput="renderListings()" />
+          </div>
+          <select class="filter-select" id="listingsCatFilter" onchange="renderListings()">
+            <option value="">All Categories</option>
+          </select>
+          <select class="filter-select" id="listingsMktFilter" onchange="renderListings()">
+            <option value="">All Marketplaces</option>
+            <option>Myntra</option><option>Nykaa</option><option>Amazon</option><option>Ajio</option><option>Flipkart</option>
+          </select>
+          <select class="filter-select" id="listingsStatusFilter" onchange="renderListings()">
+            <option value="">All Status</option>
+            <option value="live">Live</option>
+            <option value="pending">Pending</option>
+            <option value="draft">Draft</option>
+          </select>
+          <div style="margin-left:auto"><button class="btn btn-dark">+ Add Listing</button></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Marketplace</th><th>Mkt SKU</th><th>AOBA SKU</th><th>Type</th><th>Style ID</th><th>Status</th><th>Launch</th><th>URL</th>
+            </tr></thead>
+            <tbody id="listingsTbody"></tbody>
+          </table>
+          <div id="listingsEmpty" class="empty-state" style="display:none">No listings match your filters.</div>
+        </div>
+      </div>
+      <div id="page-ean" class="page"><div class="placeholder"><div class="ph-title">EAN / Barcode</div><p>Barcode assignment module.</p></div></div>
+      <!-- ── REPORTS ── -->
+      <div id="page-reports" class="page">
+        <div class="page-header">
+          <div class="page-header-row">
+            <div>
+              <div class="page-label">Reports</div>
+              <div class="page-title">What needs attention.</div>
+            </div>
+          </div>
+        </div>
+        <div class="report-tabs" id="reportsTabs"></div>
+        <div class="report-content" id="reportsContent"></div>
+      </div>
+      <div id="page-search"    class="page"><div class="placeholder"><div class="ph-title">Search</div><p>Search module.</p></div></div>
+      <div id="page-audit"     class="page"><div class="placeholder"><div class="ph-title">Audit Trail</div><p>Audit trail module.</p></div></div>
+      <div id="page-ai"        class="page"><div class="placeholder"><div class="ph-title">AI Copilot</div><p>AI Copilot module.</p></div></div>
+      <div id="page-import"    class="page"><div class="placeholder"><div class="ph-title">Import</div><p>Import module.</p></div></div>
+      <div id="page-settings"  class="page"><div class="placeholder"><div class="ph-title">Settings</div><p>Settings module.</p></div></div>
+      <div id="page-guide"     class="page"><div class="placeholder"><div class="ph-title">Guide</div><p>Guide module.</p></div></div>
+
+    </div><!-- /main -->
+  </div>
+</div>
+
+<!-- ═══ USER MODAL ═══════════════════════════════════════════════════════ -->
+<div class="overlay" id="userModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="modalTitle">Add User</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <input type="hidden" id="mId" />
+    <div class="field"><label>Full Name</label><input type="text" id="mName" placeholder="Priya Sharma" /></div>
+    <div class="field"><label>Email</label><input type="email" id="mEmail" placeholder="priya@company.com" /></div>
+    <div class="field">
+      <label>Password <span style="font-size:10px;color:var(--text3);text-transform:none;letter-spacing:0">(leave blank when editing)</span></label>
+      <input type="password" id="mPass" placeholder="Min. 8 characters" />
+    </div>
+    <div class="field">
+      <label>Role</label>
+      <select id="mRole">
+        <option value="">— Select role —</option>
+        <option>Founder</option><option>Admin</option>
+        <option>Merchandising</option><option>Catalog Team</option>
+        <option>Marketplace Team</option><option>Designer</option>
+        <option>Accounts</option><option>Warehouse</option>
+      </select>
+    </div>
+    <div class="field"><label>Status</label>
+      <select id="mStatus"><option value="active">Active</option><option value="inactive">Inactive</option></select>
+    </div>
+    <div class="field" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:2px">
+      <div>
+        <div style="font-size:var(--label-size);letter-spacing:var(--label-ls);text-transform:uppercase;color:var(--text3);font-weight:500;margin-bottom:2px">Two-Factor Authentication</div>
+        <div style="font-size:12px;color:var(--text2)">Require 2FA on login for this user</div>
+      </div>
+      <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0">
+        <input type="checkbox" id="mTwoFA" style="opacity:0;width:0;height:0">
+        <span id="mTwoFATrack" style="position:absolute;inset:0;border-radius:20px;background:var(--border2);cursor:pointer;transition:background 0.2s">
+          <span id="mTwoFAThumb" style="position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform 0.2s"></span>
+        </span>
+      </label>
+    </div>
+    <div class="modal-error" id="mErr"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-dark" onclick="saveUser()">Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONFIRM ══════════════════════════════════════════════════════════ -->
+<div class="overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <h4>Remove User</h4>
+    <p id="confirmMsg">Are you sure?</p>
+    <div class="confirm-actions">
+      <button class="btn btn-outline" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger-outline" onclick="execDelete()">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ INVITE MODAL ════════════════════════════════════════════════════ -->
+<div class="overlay" id="inviteModal" onclick="if(event.target===this)closeInvite()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Invite Team Member</div>
+      <button class="modal-close" onclick="closeInvite()">✕</button>
+    </div>
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" id="inviteEmail" placeholder="colleague@brand.com" />
+    </div>
+    <div class="field">
+      <label>Role</label>
+      <select id="inviteRole">
+        <option>Founder</option><option>Admin</option>
+        <option selected>Merchandising</option><option>Catalog Team</option>
+        <option>Marketplace Team</option><option>Designer</option>
+        <option>Accounts</option><option>Warehouse</option>
+      </select>
+    </div>
+    <div class="modal-error" id="inviteError"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeInvite()">Cancel</button>
+      <button class="btn btn-dark" onclick="sendInvite()">Send Invite</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ════════════════════════════════════════════════════════════ -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══ NEW STYLE MODAL ══════════════════════════════════════════════════ -->
+<div class="overlay" id="newStyleModal" onclick="if(event.target===this)closeNewStyle()">
+  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">
+    <div class="modal-head">
+      <div class="modal-title">New Style</div>
+      <button class="modal-close" onclick="closeNewStyle()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;margin-bottom:18px">
+      <div class="field" style="margin-bottom:0">
+        <label>Category</label>
+        <select id="nsCategory" onchange="updateStyleCode()">
+          <option value="">— Select category —</option>
+        </select>
+      </div>
+      <div id="nsGroupInfo" class="group-info-badge" style="display:none;margin-top:22px"></div>
+    </div>
+    <div class="field">
+      <label>Style Name</label>
+      <input type="text" id="nsName" placeholder="e.g. Printed Floral Lace Set" />
+    </div>
+    <div style="display:flex;gap:16px">
+      <div class="field" style="flex:1">
+        <label>Colors</label>
+        <div class="color-picker-wrap">
+          <div class="color-picker-chips" id="nsColorChips"></div>
+          <button type="button" class="color-add-btn" onclick="addNsColor()">+ Add Color</button>
+        </div>
+      </div>
+      <div class="field" style="flex:1">
+        <label>Sizes</label>
+        <div class="size-picker-wrap" id="nsSizePicker">
+          <label class="size-cb-label"><input type="checkbox" value="S"   onchange="updateSkuPreview()"> S</label>
+          <label class="size-cb-label"><input type="checkbox" value="M"   onchange="updateSkuPreview()"> M</label>
+          <label class="size-cb-label"><input type="checkbox" value="L"   onchange="updateSkuPreview()"> L</label>
+          <label class="size-cb-label"><input type="checkbox" value="XL"  onchange="updateSkuPreview()"> XL</label>
+          <label class="size-cb-label"><input type="checkbox" value="XXL" onchange="updateSkuPreview()"> XXL</label>
+          <label class="size-cb-label"><input type="checkbox" value="ONE" onchange="updateSkuPreview()"> ONE</label>
+        </div>
+      </div>
+    </div>
+    <div class="ns-code-row" id="nsCodeRow" style="display:none">
+      <div>
+        <div class="ns-code-label">Generated Style Code</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Assigned by the SKU Engine</div>
+      </div>
+      <div class="ns-code-val" id="nsCodeVal">—</div>
+    </div>
+    <div id="nsSkuPreview" style="display:none;margin-top:14px">
+      <div class="ns-sku-label">SKUs that will be created</div>
+      <div class="ns-sku-chips" id="nsSkuChips"></div>
+    </div>
+    <div class="modal-error" id="nsError"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeNewStyle()">Cancel</button>
+      <button class="btn btn-dark" onclick="saveNewStyle()">Create Style</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+
+const ROLES = [
+  { name: 'Founder',          emoji: '👑', color: '#8B6914', bg: 'rgba(139,105,20,0.1)',
+    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','Import','User Management','Roles & Permissions','Settings','Guide'],
+    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','Import','User Management','Roles & Permissions','Settings','Guide'] },
+  { name: 'Admin',            emoji: '🛡', color: '#5A3E8A', bg: 'rgba(90,62,138,0.1)',
+    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','Import','User Management','Roles & Permissions','Settings','Guide'],
+    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','Import','User Management','Roles & Permissions','Settings'] },
+  { name: 'Merchandising',    emoji: '🛍', color: '#2D6A4F', bg: 'rgba(45,106,79,0.1)',
+    perms:     ['Dashboard','Styles','Listings','Reports','Search','AI Copilot'],
+    editPerms: ['Styles','Listings'] },
+  { name: 'Catalog Team',     emoji: '📋', color: '#1A4F7A', bg: 'rgba(26,79,122,0.1)',
+    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Search','Import'],
+    editPerms: ['Styles','Listings','EAN / Barcode','Import'] },
+  { name: 'Marketplace Team', emoji: '🌐', color: '#7A4510', bg: 'rgba(122,69,16,0.1)',
+    perms:     ['Dashboard','Listings','Reports','Search'],
+    editPerms: ['Listings'] },
+  { name: 'Designer',         emoji: '🎨', color: '#7A1A3F', bg: 'rgba(122,26,63,0.1)',
+    perms:     ['Dashboard','Styles','Listings','Search'],
+    editPerms: ['Styles'] },
+  { name: 'Accounts',         emoji: '💼', color: '#1A5A58', bg: 'rgba(26,90,88,0.1)',
+    perms:     ['Dashboard','Reports','Audit Trail'],
+    editPerms: [] },
+  { name: 'Warehouse',        emoji: '🏭', color: '#4A4A4A', bg: 'rgba(74,74,74,0.1)',
+    perms:     ['Dashboard','Listings','Import'],
+    editPerms: ['Listings','Import'] },
+];
+
+// ── CATEGORIES ────────────────────────────────────────────────────────────
+const CATEGORIES = [
+  // Group 1 — shared running counter
+  { code: 'AILW', name: 'Inner Wear',    group: 1 },
+  { code: 'AINW', name: 'Night Wear',    group: 1 },
+  { code: 'AIBW', name: 'Beach Wear',    group: 1 },
+  { code: 'AISW', name: 'Swim Wear',     group: 1 },
+  { code: 'AIBS', name: 'Bodysuit',      group: 1 },
+  { code: 'AIWW', name: 'Winter Wear',   group: 1 },
+  { code: 'AIBL', name: 'Bralette',      group: 1 },
+  // Group 2 — shared running counter
+  { code: 'AOD',  name: 'Dress',         group: 2 },
+  { code: 'AOT',  name: 'Tops',          group: 2 },
+  { code: 'AOP',  name: 'Pants',         group: 2 },
+  { code: 'AOS',  name: 'Skirt',         group: 2 },
+  { code: 'AOCS', name: 'Co-ord Set',    group: 2 },
+  // Group 3 — shared running counter
+  { code: 'AK',   name: 'Accessories',   group: 3 },
+  // Group 4 — shared running counter
+  { code: 'AIMS', name: 'Mask Silk',     group: 4 },
+  { code: 'AIMP', name: 'Mask Printed',  group: 4 },
+  { code: 'OMNI', name: 'Mask Multi',    group: 4 },
+  { code: 'AISH', name: 'Scrunchies',    group: 4 },
+  { code: 'AISF', name: 'Scarfs',        group: 4 },
+  // Group 5 — shared running counter
+  { code: 'AIT',  name: 'Turban',        group: 5 },
+  // Standalone — own counter each
+  { code: 'AILS', name: 'Shapewear',     group: null },
+  { code: 'AIB',  name: 'Bra',           group: null },
+  { code: 'AIP',  name: 'Panty',         group: null },
+  { code: 'AIS',  name: 'Slip',          group: null },
+  { code: 'PO',   name: 'PO Style',      group: null },
+  { code: 'POB',  name: 'PO Bundle',     group: null },
+];
+
+// SKU Group engine: category → group number (null = standalone)
+const SKU_GROUPS = {
+  1: ['AILW','AINW','AIBW','AISW','AIBS','AIWW','AIBL'],
+  2: ['AOD','AOT','AOP','AOS','AOCS'],
+  3: ['AK'],
+  4: ['AIMS','AIMP','OMNI','AISH','AISF'],
+  5: ['AIT'],
+};
+
+const CAT_COLORS = {
+  'AILW': { color: '#7A2A5A', bg: 'rgba(122,42,90,0.10)'   },
+  'AINW': { color: '#5A2A7A', bg: 'rgba(90,42,122,0.10)'   },
+  'AIBW': { color: '#2D6A9A', bg: 'rgba(45,106,154,0.10)'  },
+  'AISW': { color: '#2D7A9A', bg: 'rgba(45,122,154,0.10)'  },
+  'AIBS': { color: '#7A3A5A', bg: 'rgba(122,58,90,0.10)'   },
+  'AIWW': { color: '#3A5A8A', bg: 'rgba(58,90,138,0.10)'   },
+  'AIBL': { color: '#8A3A6A', bg: 'rgba(138,58,106,0.10)'  },
+  'AOD':  { color: '#B87030', bg: 'rgba(184,112,48,0.10)'  },
+  'AOT':  { color: '#8B5E3C', bg: 'rgba(139,94,60,0.10)'   },
+  'AOP':  { color: '#5A4A3A', bg: 'rgba(90,74,58,0.10)'    },
+  'AOS':  { color: '#7A5A8A', bg: 'rgba(122,90,138,0.10)'  },
+  'AOCS': { color: '#9A6030', bg: 'rgba(154,96,48,0.10)'   },
+  'AK':   { color: '#1A4F7A', bg: 'rgba(26,79,122,0.10)'   },
+  'AIMS': { color: '#3A7A5A', bg: 'rgba(58,122,90,0.10)'   },
+  'AIMP': { color: '#4A7A5A', bg: 'rgba(74,122,90,0.10)'   },
+  'OMNI': { color: '#5A8A6A', bg: 'rgba(90,138,106,0.10)'  },
+  'AISH': { color: '#C07860', bg: 'rgba(192,120,96,0.10)'  },
+  'AISF': { color: '#7A6A3A', bg: 'rgba(122,106,58,0.10)'  },
+  'AIT':  { color: '#8A4A7A', bg: 'rgba(138,74,122,0.10)'  },
+  'AILS': { color: '#6A4A2A', bg: 'rgba(106,74,42,0.10)'   },
+  'AIB':  { color: '#9A3A5A', bg: 'rgba(154,58,90,0.10)'   },
+  'AIP':  { color: '#7A2A4A', bg: 'rgba(122,42,74,0.10)'   },
+  'AIS':  { color: '#4A3A6A', bg: 'rgba(74,58,106,0.10)'   },
+  'PO':   { color: '#3A6A5A', bg: 'rgba(58,106,90,0.10)'   },
+  'POB':  { color: '#2A5A4A', bg: 'rgba(42,90,74,0.10)'    },
+};
+function catMeta(code) { return CAT_COLORS[code] || { color: '#7A6E68', bg: 'rgba(122,110,104,0.10)' }; }
+function catName(code) { return CATEGORIES.find(c => c.code === code)?.name || code; }
+function catGroup(code) { return CATEGORIES.find(c => c.code === code)?.group ?? null; }
+function nextStyleNum(category) {
+  const grp = catGroup(category);
+  if (grp !== null) {
+    return STYLES_DATA.filter(s => SKU_GROUPS[grp].includes(s.category)).length + 1;
+  }
+  return STYLES_DATA.filter(s => s.category === category).length + 1;
+}
+
+const STYLES_DATA = [
+  // Group 1 — counter shared across AILW, AINW, AIBW, AISW, AIBS, AIWW, AIBL
+  { code:'AILW-1',  name:'Classic Lace Set',       category:'AILW',  status:'active',   colors:['A','B'],     sizes:['S','M','L','XL'], skus:8,  added:'2024-02-10' },
+  { code:'AINW-2',  name:'Satin Nightdress',        category:'AINW',  status:'active',   colors:['A','B','C'], sizes:['S','M','L'],      skus:9,  added:'2024-02-18' },
+  { code:'AIBW-3',  name:'Triangle Bikini',         category:'AIBW',  status:'active',   colors:['A','B','C'], sizes:['S','M','L'],      skus:9,  added:'2024-03-01' },
+  { code:'AISW-4',  name:'One-Piece Swimsuit',      category:'AISW',  status:'inactive', colors:['A'],         sizes:['S','M','L'],      skus:3,  added:'2024-03-12' },
+  { code:'AIBS-5',  name:'Seamless Bodysuit',       category:'AIBS',  status:'active',   colors:['A','B'],     sizes:['S','M','L','XL'], skus:8,  added:'2024-03-20' },
+  { code:'AIBL-6',  name:'Wireless Bralette',       category:'AIBL',  status:'active',   colors:['A','B','C'], sizes:['S','M','L'],      skus:9,  added:'2024-03-28' },
+  { code:'AILW-7',  name:'Floral Lace Set',         category:'AILW',  status:'active',   colors:['A','B'],     sizes:['S','M','L'],      skus:6,  added:'2024-04-01' },
+  // Group 2 — counter shared across AOD, AOT, AOP, AOS, AOCS
+  { code:'AOD-1',   name:'Wrap Midi Dress',         category:'AOD',   status:'active',   colors:['A','B'],     sizes:['S','M','L','XL'], skus:8,  added:'2024-04-05' },
+  { code:'AOT-2',   name:'Crop Top',                category:'AOT',   status:'active',   colors:['A','B','C'], sizes:['S','M','L'],      skus:9,  added:'2024-04-10' },
+  { code:'AOP-3',   name:'Wide Leg Pants',          category:'AOP',   status:'active',   colors:['A','B'],     sizes:['S','M','L','XL'], skus:8,  added:'2024-04-15' },
+  { code:'AOS-4',   name:'Pleated Midi Skirt',      category:'AOS',   status:'active',   colors:['A','B'],     sizes:['S','M','L'],      skus:6,  added:'2024-04-20' },
+  { code:'AOCS-5',  name:'Linen Co-ord Set',        category:'AOCS',  status:'active',   colors:['A','B'],     sizes:['S','M','L'],      skus:6,  added:'2024-04-25' },
+  { code:'AOT-6',   name:'Smocked Blouse',          category:'AOT',   status:'active',   colors:['A'],         sizes:['S','M','L'],      skus:3,  added:'2024-05-01' },
+  // Group 3 — AK
+  { code:'AK-1',    name:'Statement Earrings',      category:'AK',    status:'active',   colors:['A','B'],     sizes:['ONE'],            skus:2,  added:'2024-05-05' },
+  // Group 4 — counter shared across AIMS, AIMP, OMNI, AISH, AISF
+  { code:'AIMS-1',  name:'Silk Face Mask',          category:'AIMS',  status:'inactive', colors:['A'],         sizes:['ONE'],            skus:1,  added:'2024-05-08' },
+  { code:'AIMP-2',  name:'Printed Mask Set',        category:'AIMP',  status:'active',   colors:['A','B','C'], sizes:['ONE'],            skus:3,  added:'2024-05-12' },
+  { code:'OMNI-3',  name:'Omni Mask Multipack',     category:'OMNI',  status:'active',   colors:['A'],         sizes:['ONE'],            skus:1,  added:'2024-05-15' },
+  { code:'AISH-4',  name:'Satin Scrunchie Set',     category:'AISH',  status:'active',   colors:['A','B'],     sizes:['ONE'],            skus:2,  added:'2024-05-18' },
+  { code:'AISF-5',  name:'Printed Silk Scarf',      category:'AISF',  status:'active',   colors:['A','B'],     sizes:['ONE'],            skus:2,  added:'2024-05-22' },
+  // Group 5 — AIT
+  { code:'AIT-1',   name:'Printed Turban',          category:'AIT',   status:'active',   colors:['A','B'],     sizes:['ONE'],            skus:2,  added:'2024-05-25' },
+  { code:'AIT-2',   name:'Block Print Turban',      category:'AIT',   status:'active',   colors:['A'],         sizes:['ONE'],            skus:1,  added:'2024-06-01' },
+  // Standalone — own counters
+  { code:'AILS-1',  name:'High Waist Shaper',       category:'AILS',  status:'active',   colors:['A','B'],     sizes:['S','M','L','XL'], skus:8,  added:'2024-06-05' },
+  { code:'AILS-2',  name:'Full Body Shaper',        category:'AILS',  status:'active',   colors:['A'],         sizes:['S','M','L'],      skus:3,  added:'2024-06-10' },
+  { code:'AIB-1',   name:'Padded Bra',              category:'AIB',   status:'active',   colors:['A','B','C'], sizes:['30B','32B','34B'], skus:9,  added:'2024-06-15' },
+  { code:'AIP-1',   name:'Lace Panty',              category:'AIP',   status:'active',   colors:['A','B'],     sizes:['S','M','L','XL'], skus:8,  added:'2024-06-18' },
+];
+
+const LISTINGS_DATA = [
+  // Format: {CAT}-{GROUP_NUM}{COLOR}/{SIZE}
+  { sku:'AILW-1A/S',   styleCode:'AILW-1',  style:'Classic Lace Set',     category:'AILW', marketplace:'Myntra',   marketplaceSku:'MYN-10001', type:'master',    marketplaceStyleId:'MST001', status:'live',    launchDate:'2024-03-10' },
+  { sku:'AILW-1A/M',   styleCode:'AILW-1',  style:'Classic Lace Set',     category:'AILW', marketplace:'Myntra',   marketplaceSku:'MYN-10002', type:'master',    marketplaceStyleId:'MST001', status:'live',    launchDate:'2024-03-10' },
+  { sku:'AILW-1B/S',   styleCode:'AILW-1',  style:'Classic Lace Set',     category:'AILW', marketplace:'Nykaa',    marketplaceSku:'NYK-20001', type:'relisting', marketplaceStyleId:'NYK901', status:'live',    launchDate:'2024-04-01' },
+  { sku:'AINW-2A/S',   styleCode:'AINW-2',  style:'Satin Nightdress',     category:'AINW', marketplace:'Nykaa',    marketplaceSku:'NYK-20005', type:'master',    marketplaceStyleId:'NYK902', status:'live',    launchDate:'2024-03-20' },
+  { sku:'AINW-2A/M',   styleCode:'AINW-2',  style:'Satin Nightdress',     category:'AINW', marketplace:'Amazon',   marketplaceSku:'AMZ-30001', type:'relisting', marketplaceStyleId:'AMZ301', status:'pending', launchDate:null          },
+  { sku:'AIBW-3A/S',   styleCode:'AIBW-3',  style:'Triangle Bikini',      category:'AIBW', marketplace:'Nykaa',    marketplaceSku:'NYK-20010', type:'master',    marketplaceStyleId:'NYK903', status:'live',    launchDate:'2024-03-25' },
+  { sku:'AIBW-3B/M',   styleCode:'AIBW-3',  style:'Triangle Bikini',      category:'AIBW', marketplace:'Amazon',   marketplaceSku:'AMZ-30005', type:'master',    marketplaceStyleId:'AMZ302', status:'pending', launchDate:null          },
+  { sku:'AIBS-5A/M',   styleCode:'AIBS-5',  style:'Seamless Bodysuit',    category:'AIBS', marketplace:'Amazon',   marketplaceSku:'AMZ-30010', type:'master',    marketplaceStyleId:'AMZ303', status:'pending', launchDate:null          },
+  { sku:'AIBS-5B/S',   styleCode:'AIBS-5',  style:'Seamless Bodysuit',    category:'AIBS', marketplace:'Myntra',   marketplaceSku:'MYN-10010', type:'master',    marketplaceStyleId:'MST002', status:'live',    launchDate:'2024-04-15' },
+  { sku:'AIBL-6A/S',   styleCode:'AIBL-6',  style:'Wireless Bralette',    category:'AIBL', marketplace:'Myntra',   marketplaceSku:'MYN-10015', type:'master',    marketplaceStyleId:'MST003', status:'live',    launchDate:'2024-04-20' },
+  { sku:'AILW-7A/M',   styleCode:'AILW-7',  style:'Floral Lace Set',      category:'AILW', marketplace:'Flipkart', marketplaceSku:'FLK-40001', type:'master',    marketplaceStyleId:'FLK001', status:'pending', launchDate:null          },
+  { sku:'AOD-1A/S',    styleCode:'AOD-1',   style:'Wrap Midi Dress',      category:'AOD',  marketplace:'Myntra',   marketplaceSku:'MYN-10020', type:'master',    marketplaceStyleId:'MST004', status:'live',    launchDate:'2024-04-25' },
+  { sku:'AOD-1A/M',    styleCode:'AOD-1',   style:'Wrap Midi Dress',      category:'AOD',  marketplace:'Myntra',   marketplaceSku:'MYN-10021', type:'master',    marketplaceStyleId:'MST004', status:'live',    launchDate:'2024-04-25' },
+  { sku:'AOD-1B/S',    styleCode:'AOD-1',   style:'Wrap Midi Dress',      category:'AOD',  marketplace:'Ajio',     marketplaceSku:'AJO-50001', type:'relisting', marketplaceStyleId:'AJO001', status:'pending', launchDate:null          },
+  { sku:'AOT-2A/S',    styleCode:'AOT-2',   style:'Crop Top',             category:'AOT',  marketplace:'Myntra',   marketplaceSku:'MYN-10025', type:'master',    marketplaceStyleId:'MST005', status:'live',    launchDate:'2024-05-01' },
+  { sku:'AOP-3A/L',    styleCode:'AOP-3',   style:'Wide Leg Pants',       category:'AOP',  marketplace:'Myntra',   marketplaceSku:'MYN-10030', type:'master',    marketplaceStyleId:'MST006', status:'live',    launchDate:'2024-05-05' },
+  { sku:'AOS-4A/S',    styleCode:'AOS-4',   style:'Pleated Midi Skirt',   category:'AOS',  marketplace:'Myntra',   marketplaceSku:'MYN-10035', type:'master',    marketplaceStyleId:'MST007', status:'live',    launchDate:'2024-05-08' },
+  { sku:'AOCS-5A/M',   styleCode:'AOCS-5',  style:'Linen Co-ord Set',     category:'AOCS', marketplace:'Nykaa',    marketplaceSku:'NYK-20020', type:'master',    marketplaceStyleId:'NYK904', status:'live',    launchDate:'2024-05-12' },
+  { sku:'AOCS-5B/S',   styleCode:'AOCS-5',  style:'Linen Co-ord Set',     category:'AOCS', marketplace:'Ajio',     marketplaceSku:'AJO-50005', type:'relisting', marketplaceStyleId:'AJO002', status:'draft',   launchDate:null          },
+  { sku:'AIT-1A/ONE',  styleCode:'AIT-1',   style:'Printed Turban',       category:'AIT',  marketplace:'Amazon',   marketplaceSku:'AMZ-30020', type:'master',    marketplaceStyleId:'AMZ304', status:'live',    launchDate:'2024-05-20' },
+  { sku:'AISH-4A/ONE', styleCode:'AISH-4',  style:'Satin Scrunchie Set',  category:'AISH', marketplace:'Myntra',   marketplaceSku:'MYN-10040', type:'master',    marketplaceStyleId:'MST008', status:'live',    launchDate:'2024-05-22' },
+  { sku:'AISF-5A/ONE', styleCode:'AISF-5',  style:'Printed Silk Scarf',   category:'AISF', marketplace:'Nykaa',    marketplaceSku:'NYK-20025', type:'master',    marketplaceStyleId:'NYK905', status:'draft',   launchDate:null          },
+  { sku:'AILS-1A/S',   styleCode:'AILS-1',  style:'High Waist Shaper',    category:'AILS', marketplace:'Myntra',   marketplaceSku:'MYN-10045', type:'master',    marketplaceStyleId:'MST009', status:'live',    launchDate:'2024-06-08' },
+  { sku:'AILS-1A/M',   styleCode:'AILS-1',  style:'High Waist Shaper',    category:'AILS', marketplace:'Myntra',   marketplaceSku:'MYN-10046', type:'master',    marketplaceStyleId:'MST009', status:'live',    launchDate:'2024-06-08' },
+  { sku:'AILS-1B/S',   styleCode:'AILS-1',  style:'High Waist Shaper',    category:'AILS', marketplace:'Flipkart', marketplaceSku:'FLK-40005', type:'relisting', marketplaceStyleId:'FLK002', status:'pending', launchDate:null          },
+  { sku:'AIB-1A/30B',  styleCode:'AIB-1',   style:'Padded Bra',           category:'AIB',  marketplace:'Myntra',   marketplaceSku:'MYN-10050', type:'master',    marketplaceStyleId:'MST010', status:'live',    launchDate:'2024-06-18' },
+  { sku:'AIP-1A/S',    styleCode:'AIP-1',   style:'Lace Panty',           category:'AIP',  marketplace:'Myntra',   marketplaceSku:'MYN-10055', type:'master',    marketplaceStyleId:'MST011', status:'live',    launchDate:'2024-06-20' },
+];
+
+// active filter state for category chips
+let stylesCatActive = '';
+let listingsCatActive = '';
+
+// Grouped sections — mirrors real sidebar order
+const PERM_SECTIONS = [
+  { label: 'Core',  modules: ['Dashboard','Styles','Listings','EAN / Barcode','Reports'] },
+  { label: 'Tools', modules: ['Search','Audit Trail','AI Copilot','Import'] },
+  { label: 'Admin', modules: ['User Management','Roles & Permissions','Settings','Guide'] },
+];
+const ALL_PERMS = PERM_SECTIONS.flatMap(s => s.modules);
+
+const DEMO = { email: 'admin@aoba.com', pass: 'admin123' };
+
+function daysAgo(n) {
+  const d = new Date(); d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+function fmtLastActive(iso) {
+  if (!iso) return { text: 'Never', cls: '' };
+  const diff = Math.floor((Date.now() - new Date(iso)) / 86400000);
+  if (diff === 0) return { text: 'Today',        cls: 'recent' };
+  if (diff === 1) return { text: 'Yesterday',    cls: 'recent' };
+  if (diff <= 7)  return { text: diff + 'd ago', cls: '' };
+  if (diff <= 30) return { text: Math.floor(diff/7) + 'w ago', cls: '' };
+  return { text: Math.floor(diff/30) + 'mo ago', cls: '' };
+}
+
+let users = [
+  { id:1, name:'Ayan Agarwal',    email:'ayan@aoba.com',     role:'Founder',          status:'active',   added:'2024-01-10', lastActive: daysAgo(0),  twoFA: true  },
+  { id:2, name:'Riya Mehta',      email:'riya@aoba.com',     role:'Admin',             status:'active',   added:'2024-02-14', lastActive: daysAgo(1),  twoFA: true  },
+  { id:3, name:'Karan Joshi',     email:'karan@aoba.com',    role:'Catalog Team',      status:'active',   added:'2024-03-05', lastActive: daysAgo(3),  twoFA: false },
+  { id:4, name:'Sneha Patil',     email:'sneha@aoba.com',    role:'Merchandising',     status:'active',   added:'2024-03-20', lastActive: daysAgo(7),  twoFA: true  },
+  { id:5, name:'Arjun Singh',     email:'arjun@aoba.com',    role:'Marketplace Team',  status:'active',   added:'2024-04-01', lastActive: daysAgo(14), twoFA: false },
+  { id:6, name:'Pooja Sharma',    email:'pooja@aoba.com',    role:'Designer',          status:'active',   added:'2024-04-15', lastActive: daysAgo(2),  twoFA: false },
+  { id:7, name:'Vikram Nair',     email:'vikram@aoba.com',   role:'Accounts',          status:'active',   added:'2024-05-02', lastActive: daysAgo(30), twoFA: true  },
+  { id:8, name:'Divya Reddy',     email:'divya@aoba.com',    role:'Warehouse',         status:'inactive', added:'2024-05-18', lastActive: null,        twoFA: false },
+];
+let nextId = 9;
+let deleteTarget = null;
+let me = null;
+let changedPerms = new Set();
+const DEFAULT_PERMS = ROLES.map(r => ({ name: r.name, perms: [...r.perms], editPerms: [...r.editPerms] }));
+let selectedIds = new Set();
+let pendingInvites = [
+  { id:'inv1', email:'neha.kapoor@brand.com', role:'Merchandising', invited:'2026-06-18', status:'pending' },
+  { id:'inv2', email:'rahul.v@aoba.com',       role:'Catalog Team',  invited:'2026-06-20', status:'pending' },
+];
+
+
+// ── USER MANAGEMENT TABS (from real Aaoba app pattern) ───────────────────
+let umCurrentTab = 'members';
+let permSelectedRole = 'Founder';
+
+function showUmTab(tab) {
+  umCurrentTab = tab;
+  document.getElementById('umTab-members').style.display    = tab === 'members'     ? '' : 'none';
+  document.getElementById('umTab-permissions').style.display = tab === 'permissions' ? '' : 'none';
+  document.querySelectorAll('.um-tab-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('onclick').includes("'" + tab + "'"));
+  });
+  if (tab === 'permissions') renderPermPanel();
+}
+
+function renderPermPanel() {
+  // Render role sidebar
+  const sidebar = document.getElementById('permRoleSidebar');
+  sidebar.innerHTML = ROLES.map(r => `
+    <button class="perm-role-btn ${r.name === permSelectedRole ? 'active' : ''}"
+      onclick="selectPermRole('${r.name}')">
+      <span>${r.emoji}</span> ${r.name}
+    </button>
+  `).join('');
+  renderPermCheckboxes();
+}
+
+function selectPermRole(roleName) {
+  permSelectedRole = roleName;
+  renderPermPanel();
+}
+
+function renderPermCheckboxes() {
+  const role = ROLES.find(r => r.name === permSelectedRole);
+  if (!role) return;
+  document.getElementById('permRoleName').textContent = role.emoji + ' ' + role.name;
+  const totalPerms = ALL_PERMS.length;
+  const enabled = role.perms.length;
+  document.getElementById('permRoleStats').textContent =
+    enabled + ' of ' + totalPerms + ' permissions enabled';
+
+  const body = document.getElementById('permCheckboxBody');
+  body.innerHTML = PERM_SECTIONS.map(section => `
+    <div class="perm-category-section">
+      <div class="perm-category-label">${section.label}</div>
+      <div class="perm-checkbox-list">
+        ${section.modules.map(mod => {
+          const hasEdit = role.editPerms.includes(mod);
+          const hasView = !hasEdit && role.perms.includes(mod);
+          const enabled = hasEdit || hasView;
+          return `
+            <label class="perm-checkbox-row">
+              <input type="checkbox"
+                ${enabled ? 'checked' : ''}
+                onchange="togglePermCheckbox('${role.name}', '${mod}', this.checked)" />
+              <div>
+                <div class="perm-checkbox-desc">${mod}</div>
+                <div class="perm-checkbox-key">${hasEdit ? 'Edit access' : hasView ? 'View only' : 'No access'}</div>
+              </div>
+            </label>`;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function togglePermCheckbox(roleName, module, checked) {
+  const role = ROLES.find(r => r.name === roleName);
+  if (!role) return;
+  if (checked) {
+    if (!role.perms.includes(module)) role.perms.push(module);
+    if (!role.editPerms.includes(module)) role.editPerms.push(module);
+  } else {
+    role.perms = role.perms.filter(p => p !== module);
+    role.editPerms = role.editPerms.filter(p => p !== module);
+  }
+  const key = roleName + '::' + module;
+  const def = DEFAULT_PERMS.find(d => d.name === roleName);
+  const wasEnabled = def.perms.includes(module);
+  if (wasEnabled === checked) changedPerms.delete(key);
+  else changedPerms.add(key);
+  updateMtxSaveBar();
+  renderPermCheckboxes();
+  document.getElementById('permRoleStats').textContent =
+    role.perms.length + ' of ' + ALL_PERMS.length + ' permissions enabled';
+}
+
+function saveCurrentRolePerms() {
+  ROLES.forEach(r => {
+    const d = DEFAULT_PERMS.find(d => d.name === r.name);
+    d.perms = [...r.perms]; d.editPerms = [...r.editPerms];
+  });
+  changedPerms.clear();
+  updateMtxSaveBar();
+  const lbl = document.getElementById('permSavedLabel');
+  lbl.style.display = '';
+  setTimeout(() => lbl.style.display = 'none', 2000);
+  toast('Permissions saved.', 'success');
+}
+
+// ── TOGGLE SWITCH for active/inactive ────────────────────────────────────
+function toggleUserActive(userId) {
+  const u = users.find(x => x.id === userId);
+  if (!u) return;
+  u.status = u.status === 'active' ? 'inactive' : 'active';
+  updateStats(); renderTable();
+  toast(u.name + ' marked ' + u.status);
+}
+
+
+// ── DATE ──────────────────────────────────────────────────────────────────
+document.getElementById('topbarDate').textContent =
+  new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }).toUpperCase();
+
+// ── AUTH ──────────────────────────────────────────────────────────────────
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const err   = document.getElementById('loginError');
+  if (!email || !pass) { err.textContent = 'Enter email and password.'; return; }
+
+  let found = null;
+  if (email === DEMO.email && pass === DEMO.pass) {
+    found = users[0];
+  } else {
+    found = users.find(u => u.email === email && u.status === 'active');
+  }
+
+  if (!found) { err.textContent = 'Invalid credentials or inactive account.'; return; }
+  me = found;
+  err.textContent = '';
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('appShell').style.display  = 'flex';
+  document.getElementById('sbAvatar').textContent = initials(me.name);
+  document.getElementById('sbName').textContent   = me.name;
+  document.getElementById('sbRole').textContent   = me.role;
+  initCatDropdown('stylesCatFilter'); initCatDropdown('listingsCatFilter');
+  renderTable(); renderRoles(); updateStats(); renderPendingInvites();
+  renderStyles(); renderListings(); renderDashboard(); renderReports();
+  const pg = new URLSearchParams(location.search).get('page') || 'dashboard';
+  showPage(pg);
+}
+function doLogout() {
+  me = null;
+  document.getElementById('appShell').style.display  = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPass').value  = '';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') doLogin();
+  if (e.key === 'Escape') { closeModal(); closeConfirm(); closeInvite(); }
+});
+
+// ── NAV ───────────────────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pg = document.getElementById('page-' + id);
+  if (pg) pg.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(`'${id}'`)) n.classList.add('active');
+  });
+  if (id === 'reports') renderReports();
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────
+function initials(n) { return n.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase(); }
+const AV_COLORS = ['#C07860','#5A8A6F','#5A6A9A','#9A5A5A','#7A6A4A','#5A7A8A','#8A5A7A','#6A6A6A'];
+function avColor(n) { let h=0; for(let c of n) h=(h<<5)-h+c.charCodeAt(0); return AV_COLORS[Math.abs(h)%AV_COLORS.length]; }
+function roleMeta(r) { return ROLES.find(x=>x.name===r) || {color:'#7A6E68',bg:'rgba(122,110,104,0.1)'}; }
+function fmt(d) { return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+
+// ── STATS ─────────────────────────────────────────────────────────────────
+function updateStats() {
+  const total = users.length, active = users.filter(u=>u.status==='active').length;
+  document.getElementById('statTotal').textContent    = total;
+  document.getElementById('statActive').textContent   = active;
+  document.getElementById('statInactive').textContent = total - active;
+  document.getElementById('hdrTotal').textContent     = total;
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────────────
+function renderTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const rf = document.getElementById('roleFilter').value;
+  const sf = document.getElementById('statusFilter').value;
+  const list = users.filter(u =>
+    (!q  || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) &&
+    (!rf || u.role === rf) &&
+    (!sf || u.status === sf)
+  );
+  const tbody = document.getElementById('tbody');
+  const empty = document.getElementById('emptyRow');
+  if (!list.length) { tbody.innerHTML=''; empty.style.display='block'; updateBulkBar(); return; }
+  empty.style.display = 'none';
+  const rm = roleMeta;
+  tbody.innerHTML = list.map(u => {
+    const r = rm(u.role);
+    const la = fmtLastActive(u.lastActive);
+    const checked = selectedIds.has(u.id) ? 'checked' : '';
+    return `<tr class="${selectedIds.has(u.id)?'selected':''}">
+      <td class="cb-cell"><input type="checkbox" class="cb" ${checked} onchange="toggleSelect(${u.id},this.checked)"></td>
+      <td><div class="user-cell">
+        <div class="av-sm" style="background:${avColor(u.name)}">${initials(u.name)}</div>
+        <div><div class="cell-name">${u.name}</div><div class="cell-email">${u.email}</div></div>
+      </div></td>
+      <td><span class="role-tag" style="background:${r.bg};color:${r.color}">${u.role}</span></td>
+      <td>
+        <button class="toggle-wrap ${u.status==='active'?'on':''}" onclick="toggleUserActive(${u.id})" title="${u.status==='active'?'Active — click to deactivate':'Inactive — click to activate'}">
+          <span class="toggle-track ${u.status==='active'?'on':''}"></span>
+          <span class="toggle-thumb"></span>
+        </button>
+      </td>
+      <td><span class="twofa-badge ${u.twoFA?'twofa-on':'twofa-off'}">${u.twoFA?'✓ On':'✕ Off'}</span></td>
+      <td><span class="last-active ${la.cls}">${la.text}</span></td>
+      <td style="color:var(--text3)">${fmt(u.added)}</td>
+      <td><div class="row-actions">
+        <button class="tbl-btn" onclick="openEdit(${u.id})">Edit</button>
+        <button class="tbl-btn del" onclick="askDelete(${u.id})">Remove</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  updateSelectAll();
+}
+
+// ── BULK SELECTION ────────────────────────────────────────────────────────
+function toggleSelect(id, checked) {
+  if (checked) selectedIds.add(id); else selectedIds.delete(id);
+  updateBulkBar();
+  updateSelectAll();
+  // highlight row
+  document.querySelectorAll('#tbody tr').forEach(tr => {
+    const cb = tr.querySelector('.cb');
+    if (cb) tr.classList.toggle('selected', cb.checked);
+  });
+}
+function toggleSelectAll(checked) {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const rf = document.getElementById('roleFilter').value;
+  const sf = document.getElementById('statusFilter').value;
+  const visible = users.filter(u =>
+    (!q  || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) &&
+    (!rf || u.role === rf) && (!sf || u.status === sf)
+  );
+  visible.forEach(u => { if (checked) selectedIds.add(u.id); else selectedIds.delete(u.id); });
+  renderTable();
+}
+function updateSelectAll() {
+  const allCb = document.getElementById('selectAllCb');
+  if (!allCb) return;
+  const visibleIds = Array.from(document.querySelectorAll('#tbody .cb')).map(cb => {
+    const tr = cb.closest('tr');
+    return parseInt(tr.querySelector('[onclick*="openEdit"]')?.getAttribute('onclick')?.match(/\d+/) || [0]);
+  });
+  allCb.checked = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+  allCb.indeterminate = !allCb.checked && visibleIds.some(id => selectedIds.has(id));
+}
+function updateBulkBar() {
+  const bar = document.getElementById('bulkBar');
+  const cnt = document.getElementById('bulkCount');
+  if (selectedIds.size > 0) {
+    bar.classList.add('visible');
+    cnt.textContent = selectedIds.size + ' user' + (selectedIds.size !== 1 ? 's' : '') + ' selected';
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+function clearSelection() { selectedIds.clear(); renderTable(); updateBulkBar(); }
+function bulkActivate() {
+  selectedIds.forEach(id => { const u = users.find(x=>x.id===id); if(u) u.status='active'; });
+  toast(selectedIds.size + ' users activated');
+  clearSelection(); updateStats();
+}
+function bulkDeactivate() {
+  selectedIds.forEach(id => { const u = users.find(x=>x.id===id); if(u) u.status='inactive'; });
+  toast(selectedIds.size + ' users deactivated');
+  clearSelection(); updateStats();
+}
+function bulkRemove() {
+  if (!confirm(`Remove ${selectedIds.size} user(s)? This cannot be undone.`)) return;
+  users = users.filter(u => !selectedIds.has(u.id));
+  toast(selectedIds.size + ' users removed');
+  clearSelection(); updateStats();
+}
+
+// ── PERMISSIONS INLINE EDIT ───────────────────────────────────────────────
+function togglePerm(roleName, module) {
+  const role = ROLES.find(r => r.name === roleName);
+  if (!role) return;
+  const inEdit = role.editPerms.includes(module);
+  const inView = !inEdit && role.perms.includes(module);
+  if (inEdit) {
+    // Edit → View: remove from editPerms, keep in perms
+    role.editPerms = role.editPerms.filter(p => p !== module);
+  } else if (inView) {
+    // View → None: remove from both
+    role.perms = role.perms.filter(p => p !== module);
+  } else {
+    // None → Edit: add to both
+    role.perms.push(module);
+    role.editPerms.push(module);
+  }
+  const key = `${roleName}::${module}`;
+  // Check if back to original state — if so remove from changed set
+  const def = DEFAULT_PERMS.find(d => d.name === roleName);
+  const wasEdit = def.editPerms.includes(module);
+  const wasView = !wasEdit && def.perms.includes(module);
+  const nowEdit = role.editPerms.includes(module);
+  const nowView = !nowEdit && role.perms.includes(module);
+  if ((wasEdit && nowEdit) || (wasView && nowView) || (!def.perms.includes(module) && !role.perms.includes(module))) {
+    changedPerms.delete(key);
+  } else {
+    changedPerms.add(key);
+  }
+  renderRoles();
+  updateMtxSaveBar();
+}
+function updateMtxSaveBar() {
+  const bar = document.getElementById('mtxSaveBar');
+  const bar2 = document.getElementById('mtxSaveBar2');
+  const cnt = document.getElementById('mtxSaveCount');
+  const cnt2 = document.getElementById('mtxSaveCount2');
+  const msg = changedPerms.size + ' permission' + (changedPerms.size !== 1 ? 's' : '') + ' changed';
+  if (changedPerms.size > 0) {
+    if (bar) { bar.classList.add('visible'); cnt.textContent = msg; }
+    if (bar2) { bar2.classList.add('visible'); cnt2.textContent = msg; }
+  } else {
+    if (bar) bar.classList.remove('visible');
+    if (bar2) bar2.classList.remove('visible');
+  }
+}
+function savePerms() {
+  // Update the default snapshot to match current state
+  ROLES.forEach(r => {
+    const d = DEFAULT_PERMS.find(d => d.name === r.name);
+    d.perms = [...r.perms]; d.editPerms = [...r.editPerms];
+  });
+  changedPerms.clear();
+  renderRoles();
+  updateMtxSaveBar();
+  toast('Permissions saved.', 'success');
+}
+function resetPerms() {
+  DEFAULT_PERMS.forEach(d => {
+    const r = ROLES.find(r => r.name === d.name);
+    if (r) { r.perms = [...d.perms]; r.editPerms = [...d.editPerms]; }
+  });
+  changedPerms.clear();
+  renderRoles();
+  updateMtxSaveBar();
+  toast('Permissions reset to default.');
+}
+
+// ── INVITES ───────────────────────────────────────────────────────────────
+function openInvite() {
+  document.getElementById('inviteEmail').value = '';
+  document.getElementById('inviteRole').value  = ROLES[2].name;
+  document.getElementById('inviteError').textContent = '';
+  document.getElementById('inviteModal').classList.add('open');
+  setTimeout(() => document.getElementById('inviteEmail').focus(), 120);
+}
+function closeInvite() { document.getElementById('inviteModal').classList.remove('open'); }
+function sendInvite() {
+  const email = document.getElementById('inviteEmail').value.trim();
+  const role  = document.getElementById('inviteRole').value;
+  const err   = document.getElementById('inviteError');
+  if (!email || !email.includes('@')) { err.textContent = 'Enter a valid email address.'; return; }
+  if (users.find(u=>u.email===email)) { err.textContent = 'This email already has an account.'; return; }
+  if (pendingInvites.find(i=>i.email===email)) { err.textContent = 'Invite already sent to this email.'; return; }
+  pendingInvites.push({ id:'inv'+Date.now(), email, role, invited: new Date().toISOString().slice(0,10), status:'pending' });
+  closeInvite();
+  renderPendingInvites();
+  toast('Invite sent to ' + email);
+}
+function revokeInvite(id) {
+  pendingInvites = pendingInvites.filter(i => i.id !== id);
+  renderPendingInvites();
+  toast('Invite revoked');
+}
+function renderPendingInvites() {
+  const section = document.getElementById('pendingSection');
+  const tbody   = document.getElementById('inviteTbody');
+  if (!pendingInvites.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  tbody.innerHTML = pendingInvites.map(inv => {
+    const r = roleMeta(inv.role);
+    return `<tr>
+      <td>${inv.email}</td>
+      <td><span class="role-tag" style="background:${r.bg};color:${r.color}">${inv.role}</span></td>
+      <td style="color:var(--text3)">${fmt(inv.invited)}</td>
+      <td><span class="invite-tag"><span class="invite-dot"></span>Pending</span></td>
+      <td><button class="tbl-btn del" onclick="revokeInvite('${inv.id}')">Revoke</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const totalStyles   = STYLES_DATA.length;
+  const totalSkus     = STYLES_DATA.reduce((s, x) => s + x.skus, 0);
+  const activeStyles  = STYLES_DATA.filter(s => s.status === 'active').length;
+  const inactiveStyles= STYLES_DATA.filter(s => s.status === 'inactive').length;
+  const liveLst       = LISTINGS_DATA.filter(l => l.status === 'live').length;
+
+  // mock stats that would come from real data
+  const readyLaunch   = 3;
+  const launchedMo    = 5;
+  const pendPhotoshoot= 8;
+  const pendCosting   = 2;
+  const missingEans   = 6;
+  const missingImages = 4;
+
+  const stylesWithLive = new Set(LISTINGS_DATA.filter(l=>l.status==='live').map(l=>l.style));
+  const quality = Math.round((stylesWithLive.size / totalStyles) * 100);
+
+  document.getElementById('dashTotalStyles').textContent = totalStyles;
+  document.getElementById('dashTotalSkus').textContent   = totalSkus;
+  document.getElementById('dashActive').textContent      = activeStyles;
+  document.getElementById('dashLive').textContent        = liveLst;
+  document.getElementById('dashInactive').textContent    = inactiveStyles;
+  document.getElementById('dashReady').textContent       = readyLaunch;
+  document.getElementById('dashLaunched').textContent    = launchedMo;
+  document.getElementById('dashPhotoshoot').textContent  = pendPhotoshoot;
+  document.getElementById('dashCosting').textContent     = pendCosting;
+  document.getElementById('dashEans').textContent        = missingEans;
+  document.getElementById('dashImages').textContent      = missingImages;
+  document.getElementById('dashQuality').textContent     = quality;
+  document.getElementById('dashQuality2').innerHTML      = quality + '<span style="font-size:18px">%</span>';
+
+  const maxSkus = Math.max(...CATEGORIES.map(c =>
+    STYLES_DATA.filter(s=>s.category===c.code).reduce((a,s)=>a+s.skus,0)), 1);
+
+  document.getElementById('dashCatTbody').innerHTML = CATEGORIES.map(c => {
+    const catStyles  = STYLES_DATA.filter(s => s.category === c.code);
+    if (!catStyles.length) return '';
+    const skuCount   = catStyles.reduce((a, s) => a + s.skus, 0);
+    const catLst     = LISTINGS_DATA.filter(l => l.category === c.code);
+    const liveCount  = catLst.filter(l => l.status === 'live').length;
+    const pendCount  = catLst.filter(l => l.status === 'pending').length;
+    const draftCount = catLst.filter(l => l.status === 'draft').length;
+    const cm         = catMeta(c.code);
+    const barPct     = Math.round((skuCount / maxSkus) * 100);
+    const val = (n, color) => n > 0
+      ? `<span style="color:${color};font-weight:600">${n}</span>`
+      : `<span style="color:var(--text3)">—</span>`;
+    return `<tr>
+      <td><span class="cat-badge" style="background:${cm.bg};color:${cm.color}">
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.06em">${c.code}</span>
+      </span></td>
+      <td style="font-weight:500">${c.name}</td>
+      <td>${catStyles.length}</td>
+      <td>${skuCount}</td>
+      <td>${val(liveCount,'var(--success)')}</td>
+      <td>${val(pendCount,'var(--warn)')}</td>
+      <td>${val(draftCount,'var(--text2)')}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="prefix-bar-wrap"><div class="prefix-bar" style="width:${barPct}%;background:${cm.color}"></div></div>
+        <span style="font-size:11px;color:var(--text3)">${skuCount}</span>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── STYLES ────────────────────────────────────────────────────────────────
+function renderStyles() {
+  const q   = document.getElementById('stylesSearch').value.toLowerCase();
+  const cf  = document.getElementById('stylesCatFilter').value || stylesCatActive;
+  const sf  = document.getElementById('stylesStatusFilter').value;
+  const list = STYLES_DATA.filter(s =>
+    (!q  || s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)) &&
+    (!cf || s.category === cf) &&
+    (!sf || s.status === sf)
+  );
+  document.getElementById('stylesTotalHdr').textContent = list.length;
+  const empty = document.getElementById('stylesEmpty');
+  const tbody = document.getElementById('stylesTbody');
+  if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = list.map(s => {
+    const cm  = catMeta(s.category);
+    const grp = catGroup(s.category);
+    const grpBadge = grp !== null ? `<span class="grp-tag">G${grp}</span>` : '';
+    const colorDots = (s.colors||[]).map(c =>
+      `<span class="color-dot" title="Color ${c}">${c}</span>`).join('');
+    const sizeStr = (s.sizes||[]).join(' · ');
+    return `<tr>
+      <td><span class="style-code">${s.code}</span></td>
+      <td><span class="cat-badge" style="background:${cm.bg};color:${cm.color}">
+        <span class="cat-badge-code">${s.category}</span> ${catName(s.category)}
+      </span>${grpBadge}</td>
+      <td style="font-weight:500">${s.name}</td>
+      <td><div class="color-dots">${colorDots}</div></td>
+      <td style="font-size:11px;color:var(--text2)">${sizeStr}</td>
+      <td><span class="sku-count">${s.skus}</span></td>
+      <td><span class="status-tag">
+        <span class="status-dot ${s.status==='active'?'dot-active':'dot-inactive'}"></span>
+        ${s.status==='active'?'Active':'Inactive'}
+      </span></td>
+      <td style="color:var(--text3)">${fmt(s.added)}</td>
+      <td><div class="row-actions">
+        <button class="tbl-btn">View</button>
+        <button class="tbl-btn">Edit</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  renderStylesCatChips();
+}
+
+function renderStylesCatChips() {
+  const counts = {};
+  STYLES_DATA.forEach(s => { counts[s.category] = (counts[s.category]||0) + 1; });
+  const chips = CATEGORIES.filter(c => counts[c.code]).map(c => {
+    const cm = catMeta(c.code);
+    const active = stylesCatActive === c.code ? ' active' : '';
+    return `<div class="cat-chip${active}" style="background:${cm.bg};color:${cm.color}" onclick="filterStylesCat('${c.code}')">
+      <span class="cat-chip-code">${c.code}</span>
+      <span class="cat-chip-name">${c.name}</span>
+      <span class="cat-chip-count">${counts[c.code]}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('stylesCatChips').innerHTML = chips +
+    (stylesCatActive ? `<div class="cat-chip" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border2)" onclick="filterStylesCat('')">✕ Clear</div>` : '');
+}
+
+function filterStylesCat(code) {
+  stylesCatActive = stylesCatActive === code ? '' : code;
+  document.getElementById('stylesCatFilter').value = stylesCatActive;
+  renderStyles();
+}
+
+function initCatDropdown(elId) {
+  const sel = document.getElementById(elId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">All Categories</option>' +
+    CATEGORIES.map(c => `<option value="${c.code}">${c.code} — ${c.name}</option>`).join('');
+}
+
+// ── LISTINGS ──────────────────────────────────────────────────────────────
+function renderListings() {
+  const q   = document.getElementById('listingsSearch').value.toLowerCase();
+  const cf  = document.getElementById('listingsCatFilter').value || listingsCatActive;
+  const mf  = document.getElementById('listingsMktFilter').value;
+  const sf  = document.getElementById('listingsStatusFilter').value;
+  const list = LISTINGS_DATA.filter(l =>
+    (!q  || l.sku.toLowerCase().includes(q) || l.style.toLowerCase().includes(q) || l.marketplaceSku.toLowerCase().includes(q)) &&
+    (!cf || l.category === cf) &&
+    (!mf || l.marketplace === mf) &&
+    (!sf || l.status === sf)
+  );
+  document.getElementById('listingsTotalHdr').textContent = list.length;
+  const empty = document.getElementById('listingsEmpty');
+  const tbody = document.getElementById('listingsTbody');
+  if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = list.map(l => {
+    const stCls    = { live:'lst-live', pending:'lst-pending', draft:'lst-draft' }[l.status] || '';
+    const typeCls  = l.type === 'master' ? 'type-master' : 'type-relisting';
+    const typeLabel= l.type === 'master' ? 'Master' : 'Relisting';
+    const launch   = l.launchDate ? fmt(l.launchDate) : `<span style="color:var(--text3)">—</span>`;
+    return `<tr>
+      <td><span class="mkt-tag">${l.marketplace}</span></td>
+      <td><span class="style-code">${l.marketplaceSku}</span></td>
+      <td><span class="aoba-sku-tag">${l.sku}</span></td>
+      <td><span class="type-tag ${typeCls}">${typeLabel}</span></td>
+      <td style="color:var(--text3);font-size:12px">${l.marketplaceStyleId}</td>
+      <td><span class="lst-tag ${stCls}">${l.status.charAt(0).toUpperCase()+l.status.slice(1)}</span></td>
+      <td style="font-size:12px">${launch}</td>
+      <td><a class="url-link" href="#" onclick="return false">↗</a></td>
+    </tr>`;
+  }).join('');
+  renderListingsCatChips();
+}
+
+function renderListingsCatChips() {
+  const counts = {};
+  LISTINGS_DATA.forEach(l => { counts[l.category] = (counts[l.category]||0) + 1; });
+  const chips = CATEGORIES.filter(c => counts[c.code]).map(c => {
+    const cm = catMeta(c.code);
+    const active = listingsCatActive === c.code ? ' active' : '';
+    return `<div class="cat-chip${active}" style="background:${cm.bg};color:${cm.color}" onclick="filterListingsCat('${c.code}')">
+      <span class="cat-chip-code">${c.code}</span>
+      <span class="cat-chip-name">${c.name}</span>
+      <span class="cat-chip-count">${counts[c.code]}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('listingsCatChips').innerHTML = chips +
+    (listingsCatActive ? `<div class="cat-chip" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border2)" onclick="filterListingsCat('')">✕ Clear</div>` : '');
+}
+
+function filterListingsCat(code) {
+  listingsCatActive = listingsCatActive === code ? '' : code;
+  document.getElementById('listingsCatFilter').value = listingsCatActive;
+  renderListings();
+}
+
+// ── REPORTS ───────────────────────────────────────────────────────────────
+let activeReportTab = 'missing-ean';
+const REPORT_TABS = [
+  { id:'missing-ean',     label:'Missing EAN',         warn:true  },
+  { id:'missing-images',  label:'Missing Images',       warn:true  },
+  { id:'mkt-mapping',     label:'Marketplace Mapping',  warn:false },
+  { id:'inactive-styles', label:'Inactive Styles',      warn:false },
+  { id:'launches',        label:'Product Launches',     warn:false },
+  { id:'duplicates',      label:'Duplicate Listings',   warn:false },
+  { id:'costing',         label:'Costing Pending',      warn:true  },
+  { id:'barcode',         label:'Barcode Pending',      warn:true  },
+  { id:'relisting',       label:'Relisting Report',     warn:false },
+  { id:'sku-creation',    label:'SKU Creation',         warn:false },
+];
+
+function renderReports() {
+  const tabsEl = document.getElementById('reportsTabs');
+  const contentEl = document.getElementById('reportsContent');
+  if (!tabsEl || !contentEl) return;
+
+  const counts = {
+    'missing-ean':     STYLES_DATA.filter((_,i)=>i%4===0).length,
+    'missing-images':  STYLES_DATA.filter((_,i)=>i%5===0).length,
+    'inactive-styles': STYLES_DATA.filter(s=>s.status==='inactive').length,
+    'launches':        LISTINGS_DATA.filter(l=>l.status==='live'&&l.launchDate).length,
+    'costing':         STYLES_DATA.filter((_,i)=>i%10===2||i%10===7).length,
+    'barcode':         LISTINGS_DATA.filter(l=>l.status==='pending').slice(0,5).length,
+    'relisting':       LISTINGS_DATA.filter(l=>l.type==='relisting').length,
+  };
+
+  tabsEl.innerHTML = REPORT_TABS.map(t => {
+    const active = activeReportTab === t.id ? ' active' : '';
+    const n = counts[t.id] || 0;
+    const badge = n > 0 ? `<span class="tab-count${t.warn?' tab-count-warn':''}">${n}</span>` : '';
+    return `<div class="report-tab${active}" onclick="switchReportTab('${t.id}')">${t.label}${badge}</div>`;
+  }).join('');
+
+  renderReportContent(activeReportTab, contentEl);
+}
+
+function switchReportTab(id) { activeReportTab = id; renderReports(); }
+
+function renderReportContent(tab, el) {
+  const info = s => `<div class="report-info">${s}</div>`;
+  const tbl  = (head, rows) => `<div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+
+  if (tab === 'missing-ean') {
+    const rows = STYLES_DATA.filter((_,i)=>i%4===0).map(s => {
+      const cm = catMeta(s.category);
+      return `<tr><td><span class="style-code">${s.code}</span></td><td>${s.name}</td>
+        <td><span class="cat-badge" style="background:${cm.bg};color:${cm.color}">${s.category}</span></td>
+        <td style="color:var(--danger);font-weight:600">${s.skus}</td>
+        <td><span class="lst-tag lst-pending">Pending</span></td>
+        <td><button class="tbl-btn">Assign EAN</button></td></tr>`;
+    }).join('');
+    el.innerHTML = info('Styles with SKUs missing EAN barcodes. Required for Myntra, Amazon and Flipkart.') +
+      tbl('<th>Style Code</th><th>Name</th><th>Category</th><th>SKUs Without EAN</th><th>Status</th><th></th>', rows);
+    return;
+  }
+  if (tab === 'missing-images') {
+    const rows = STYLES_DATA.filter((_,i)=>i%5===0).map(s => {
+      const cm = catMeta(s.category);
+      return `<tr><td><span class="style-code">${s.code}</span></td><td>${s.name}</td>
+        <td><span class="cat-badge" style="background:${cm.bg};color:${cm.color}">${s.category}</span></td>
+        <td><span class="lst-tag lst-pending">Missing</span></td>
+        <td><button class="tbl-btn">Upload</button></td></tr>`;
+    }).join('');
+    el.innerHTML = info('Styles without product images in the catalog.') +
+      tbl('<th>Style Code</th><th>Name</th><th>Category</th><th>Status</th><th></th>', rows);
+    return;
+  }
+  if (tab === 'mkt-mapping') {
+    const mkts = ['Myntra','Nykaa','Amazon','Ajio','Flipkart'];
+    const rows = mkts.map(m => {
+      const lst = LISTINGS_DATA.filter(l=>l.marketplace===m);
+      const live = lst.filter(l=>l.status==='live').length;
+      const pend = lst.filter(l=>l.status==='pending').length;
+      const drft = lst.filter(l=>l.status==='draft').length;
+      return `<tr><td><span class="mkt-tag">${m}</span></td><td><strong>${lst.length}</strong></td>
+        <td style="color:var(--success)">${live}</td>
+        <td style="color:var(--warn)">${pend}</td>
+        <td style="color:var(--text3)">${drft}</td></tr>`;
+    }).join('');
+    el.innerHTML = info('Overview of how AOBA styles map across marketplaces.') +
+      tbl('<th>Marketplace</th><th>Total</th><th>Live</th><th>Pending</th><th>Draft</th>', rows);
+    return;
+  }
+  if (tab === 'inactive-styles') {
+    const rows = STYLES_DATA.filter(s=>s.status==='inactive').map(s => {
+      const cm = catMeta(s.category);
+      return `<tr><td><span class="style-code">${s.code}</span></td><td>${s.name}</td>
+        <td><span class="cat-badge" style="background:${cm.bg};color:${cm.color}">${s.category}</span></td>
+        <td>${s.skus}</td><td style="color:var(--text3)">${fmt(s.added)}</td>
+        <td><button class="tbl-btn">Reactivate</button></td></tr>`;
+    }).join('');
+    el.innerHTML = info('Styles marked inactive — not available for listing.') +
+      tbl('<th>Style Code</th><th>Name</th><th>Category</th><th>SKUs</th><th>Added</th><th></th>', rows);
+    return;
+  }
+  if (tab === 'launches') {
+    const rows = LISTINGS_DATA.filter(l=>l.status==='live'&&l.launchDate)
+      .sort((a,b)=>b.launchDate.localeCompare(a.launchDate)).map(l => {
+        const typeCls = l.type==='master'?'type-master':'type-relisting';
+        return `<tr><td><span class="aoba-sku-tag">${l.sku}</span></td><td>${l.style}</td>
+          <td><span class="mkt-tag">${l.marketplace}</span></td>
+          <td><span class="type-tag ${typeCls}">${l.type==='master'?'Master':'Relisting'}</span></td>
+          <td>${fmt(l.launchDate)}</td></tr>`;
+      }).join('');
+    el.innerHTML = info('All live listings sorted by launch date.') +
+      tbl('<th>AOBA SKU</th><th>Style</th><th>Marketplace</th><th>Type</th><th>Launch Date</th>', rows);
+    return;
+  }
+  if (tab === 'duplicates') {
+    el.innerHTML = info('Listings where the same AOBA SKU appears more than once on a marketplace.') +
+      `<div style="padding:48px;text-align:center">
+        <div style="font-family:var(--font-display);font-size:32px;color:var(--success);margin-bottom:8px">All clear</div>
+        <div style="font-size:13px;color:var(--text3)">No duplicate listings detected.</div>
+      </div>`;
+    return;
+  }
+  if (tab === 'costing') {
+    const rows = STYLES_DATA.filter((_,i)=>i%10===2||i%10===7).map(s => {
+      const cm = catMeta(s.category);
+      return `<tr><td><span class="style-code">${s.code}</span></td><td>${s.name}</td>
+        <td><span class="cat-badge" style="background:${cm.bg};color:${cm.color}">${s.category}</span></td>
+        <td>${s.skus}</td><td><button class="tbl-btn">Submit Costing</button></td></tr>`;
+    }).join('');
+    el.innerHTML = info('Styles where costing is pending approval.') +
+      tbl('<th>Style Code</th><th>Name</th><th>Category</th><th>SKUs</th><th></th>', rows);
+    return;
+  }
+  if (tab === 'barcode') {
+    const rows = LISTINGS_DATA.filter(l=>l.status==='pending').slice(0,5).map(l =>
+      `<tr><td><span class="aoba-sku-tag">${l.sku}</span></td><td>${l.style}</td>
+        <td><span class="mkt-tag">${l.marketplace}</span></td>
+        <td><span class="lst-tag lst-pending">Pending Print</span></td>
+        <td><button class="tbl-btn">Print</button></td></tr>`
+    ).join('');
+    el.innerHTML = info('EANs assigned but barcodes not yet printed.') +
+      tbl('<th>AOBA SKU</th><th>Style</th><th>Marketplace</th><th>Status</th><th></th>', rows);
+    return;
+  }
+  if (tab === 'relisting') {
+    const rows = LISTINGS_DATA.filter(l=>l.type==='relisting').map(l => {
+      const stCls = {live:'lst-live',pending:'lst-pending',draft:'lst-draft'}[l.status]||'';
+      return `<tr><td><span class="aoba-sku-tag">${l.sku}</span></td><td>${l.style}</td>
+        <td><span class="mkt-tag">${l.marketplace}</span></td>
+        <td><span class="style-code">${l.marketplaceSku}</span></td>
+        <td><span class="lst-tag ${stCls}">${l.status.charAt(0).toUpperCase()+l.status.slice(1)}</span></td></tr>`;
+    }).join('');
+    el.innerHTML = info('All relisting entries — same product on a secondary marketplace.') +
+      tbl('<th>AOBA SKU</th><th>Style</th><th>Marketplace</th><th>Mkt SKU</th><th>Status</th>', rows);
+    return;
+  }
+  if (tab === 'sku-creation') {
+    const rows = STYLES_DATA.map(s => {
+      const cm  = catMeta(s.category);
+      const grp = catGroup(s.category);
+      const grpLabel = grp !== null
+        ? `<span class="grp-tag">Group ${grp}</span>`
+        : `<span style="color:var(--text3);font-size:11px">Standalone</span>`;
+      return `<tr><td><span class="style-code">${s.code}</span></td>
+        <td><span class="cat-badge" style="background:${cm.bg};color:${cm.color}">${s.category}</span></td>
+        <td>${grpLabel}</td><td>${s.name}</td>
+        <td><span class="sku-count">${s.skus}</span></td>
+        <td style="color:var(--text3)">${fmt(s.added)}</td></tr>`;
+    }).join('');
+    el.innerHTML = info('Audit trail of all styles created via the SKU Engine with group-based numbering.') +
+      tbl('<th>Style Code</th><th>Category</th><th>Group</th><th>Name</th><th>SKUs</th><th>Created</th>', rows);
+    return;
+  }
+}
+
+// ── ROLES ─────────────────────────────────────────────────────────────────
+function renderRoles() {
+  const counts = {};
+  ROLES.forEach(r => { counts[r.name] = users.filter(u=>u.role===r.name).length; });
+
+  const headerCells = ROLES.map(r => `
+    <th class="col-head">
+      <span class="ch-emoji">${r.emoji}</span>
+      <span class="ch-name">${r.name}</span>
+      <span class="ch-count">${counts[r.name]} user${counts[r.name]!==1?'s':''}</span>
+    </th>`).join('');
+
+  // Build rows grouped by section
+  const bodyRows = PERM_SECTIONS.map(sec => {
+    const divider = `<tr class="mtx-section-row">
+      <td colspan="${ROLES.length + 1}">${sec.label}</td>
+    </tr>`;
+    const rows = sec.modules.map(p => {
+      const cells = ROLES.map(r => {
+        const canEdit = r.editPerms.includes(p);
+        const canView = !canEdit && r.perms.includes(p);
+        const changed = changedPerms.has(`${r.name}::${p}`);
+        const cls = `check-cell editable${changed ? ' changed' : ''}`;
+        const onclick = `onclick="togglePerm('${r.name}','${p}')"`;
+        if (canEdit) return `<td class="${cls}" ${onclick} title="Click to change: Edit → View"><span class="perm-edit">Edit</span></td>`;
+        if (canView) return `<td class="${cls}" ${onclick} title="Click to change: View → No access"><span class="perm-view">View</span></td>`;
+        return `<td class="${cls}" ${onclick} title="Click to change: No access → Edit"><span class="check-no"></span></td>`;
+      }).join('');
+      return `<tr><td class="row-head">${p}</td>${cells}</tr>`;
+    }).join('');
+    return divider + rows;
+  }).join('');
+
+  document.getElementById('matrixTable').innerHTML = `
+    <thead>
+      <tr>
+        <th class="row-head row-head-label">Module</th>
+        ${headerCells}
+      </tr>
+    </thead>
+    <tbody>${bodyRows}</tbody>`;
+
+  // Legend
+  document.getElementById('roleChips').innerHTML = `
+    <div class="matrix-legend">
+      <span><span class="perm-edit">Edit</span> Full read &amp; write access</span>
+      <span><span class="perm-view">View</span> Read-only access</span>
+      <span><span class="check-no" style="width:12px;display:inline-block"></span> No access</span>
+      <span style="margin-left:8px;color:var(--accent)">· Per-module permission editing coming in a future update</span>
+    </div>`;
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────
+function setTwoFA(val) {
+  document.getElementById('mTwoFA').checked = val;
+  document.getElementById('mTwoFATrack').style.background = val ? 'var(--success)' : 'var(--border2)';
+  document.getElementById('mTwoFAThumb').style.transform  = val ? 'translateX(16px)' : 'translateX(0)';
+}
+document.addEventListener('change', e => {
+  if (e.target.id === 'mTwoFA') setTwoFA(e.target.checked);
+});
+
+function openAdd() {
+  document.getElementById('modalTitle').textContent = 'Add User';
+  document.getElementById('mId').value = '';
+  ['mName','mEmail','mPass'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('mRole').value   = '';
+  document.getElementById('mStatus').value = 'active';
+  document.getElementById('mErr').textContent = '';
+  setTwoFA(false);
+  document.getElementById('userModal').classList.add('open');
+  setTimeout(() => document.getElementById('mName').focus(), 120);
+}
+function openEdit(id) {
+  const u = users.find(u=>u.id===id); if (!u) return;
+  document.getElementById('modalTitle').textContent = 'Edit User';
+  document.getElementById('mId').value     = id;
+  document.getElementById('mName').value   = u.name;
+  document.getElementById('mEmail').value  = u.email;
+  document.getElementById('mPass').value   = '';
+  document.getElementById('mRole').value   = u.role;
+  document.getElementById('mStatus').value = u.status;
+  document.getElementById('mErr').textContent = '';
+  setTwoFA(u.twoFA || false);
+  document.getElementById('userModal').classList.add('open');
+}
+function closeModal() { document.getElementById('userModal').classList.remove('open'); }
+
+function saveUser() {
+  const id     = document.getElementById('mId').value;
+  const name   = document.getElementById('mName').value.trim();
+  const email  = document.getElementById('mEmail').value.trim();
+  const pass   = document.getElementById('mPass').value;
+  const role   = document.getElementById('mRole').value;
+  const status = document.getElementById('mStatus').value;
+  const twoFA  = document.getElementById('mTwoFA').checked;
+  const err    = document.getElementById('mErr');
+
+  if (!name)  { err.textContent = 'Name is required.'; return; }
+  if (!email) { err.textContent = 'Email is required.'; return; }
+  if (!role)  { err.textContent = 'Select a role.'; return; }
+  if (!id && !pass) { err.textContent = 'Password required for new users.'; return; }
+  if (pass && pass.length < 8) { err.textContent = 'Password must be at least 8 characters.'; return; }
+  if (users.find(u => u.email === email && String(u.id) !== id)) { err.textContent = 'Email already in use.'; return; }
+
+  if (id) {
+    const u = users.find(u=>u.id===Number(id));
+    if (u) Object.assign(u, {name, email, role, status, twoFA});
+    toast('User updated.','success');
+  } else {
+    users.push({ id:nextId++, name, email, role, status, twoFA, added: new Date().toISOString().slice(0,10), lastActive: null });
+    toast('User added.','success');
+  }
+  closeModal(); renderTable(); renderRoles(); updateStats();
+}
+
+// ── DELETE ────────────────────────────────────────────────────────────────
+function askDelete(id) {
+  const u = users.find(u=>u.id===id); if (!u) return;
+  deleteTarget = id;
+  document.getElementById('confirmMsg').textContent = `Remove "${u.name}" (${u.role})? This cannot be undone.`;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+function closeConfirm() { deleteTarget=null; document.getElementById('confirmOverlay').classList.remove('open'); }
+function execDelete() {
+  if (!deleteTarget) return;
+  users = users.filter(u=>u.id!==deleteTarget);
+  closeConfirm(); renderTable(); renderRoles(); updateStats();
+  toast('User removed.','danger');
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + type;
+  setTimeout(()=>t.className='toast', 2600);
+}
+
+// ── NEW STYLE MODAL ───────────────────────────────────────────────────────
+let nsColors = ['A'];
+
+function openNewStyle() {
+  const sel = document.getElementById('nsCategory');
+  sel.innerHTML = '<option value="">— Select category —</option>' +
+    CATEGORIES.map(c => {
+      const grpStr = c.group !== null ? ` (Group ${c.group})` : ' (Standalone)';
+      return `<option value="${c.code}">${c.code} — ${c.name}${grpStr}</option>`;
+    }).join('');
+  nsColors = ['A'];
+  renderNsColors();
+  document.getElementById('nsName').value = '';
+  document.getElementById('nsCodeRow').style.display = 'none';
+  document.getElementById('nsSkuPreview').style.display = 'none';
+  document.getElementById('nsGroupInfo').style.display = 'none';
+  document.getElementById('nsError').textContent = '';
+  document.querySelectorAll('#nsSizePicker input').forEach(cb => cb.checked = false);
+  document.getElementById('newStyleModal').classList.add('open');
+  setTimeout(() => document.getElementById('nsCategory').focus(), 120);
+}
+
+function closeNewStyle() {
+  document.getElementById('newStyleModal').classList.remove('open');
+}
+
+function renderNsColors() {
+  document.getElementById('nsColorChips').innerHTML = nsColors.map((c, i) =>
+    `<span class="color-chip">${c}<button type="button" class="color-chip-remove" onclick="removeNsColor(${i})">✕</button></span>`
+  ).join('');
+  updateSkuPreview();
+}
+
+function addNsColor() {
+  if (nsColors.length >= 26) return;
+  nsColors.push(String.fromCharCode(65 + nsColors.length));
+  renderNsColors();
+}
+
+function removeNsColor(i) {
+  if (nsColors.length <= 1) return;
+  nsColors.splice(i, 1);
+  nsColors = nsColors.map((_, idx) => String.fromCharCode(65 + idx));
+  renderNsColors();
+}
+
+function updateStyleCode() {
+  const cat = document.getElementById('nsCategory').value;
+  const groupEl = document.getElementById('nsGroupInfo');
+  const codeRow = document.getElementById('nsCodeRow');
+  if (!cat) { groupEl.style.display = 'none'; codeRow.style.display = 'none'; updateSkuPreview(); return; }
+  const catObj = CATEGORIES.find(c => c.code === cat);
+  let nextNum;
+  if (catObj.group !== null) {
+    const groupCats = SKU_GROUPS[catObj.group];
+    nextNum = STYLES_DATA.filter(s => groupCats.includes(s.category)).length + 1;
+    groupEl.innerHTML = `<span class="grp-tag">Group ${catObj.group}</span> Shared with: ${groupCats.join(', ')} &nbsp;·&nbsp; Next #: <strong>${nextNum}</strong>`;
+  } else {
+    nextNum = STYLES_DATA.filter(s => s.category === cat).length + 1;
+    groupEl.innerHTML = `<span style="font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3)">Standalone</span> &nbsp;·&nbsp; Next #: <strong>${nextNum}</strong>`;
+  }
+  groupEl.style.display = 'block';
+  document.getElementById('nsCodeVal').textContent = `${cat}-${nextNum}`;
+  codeRow.style.display = 'flex';
+  updateSkuPreview();
+}
+
+function updateSkuPreview() {
+  const cat = document.getElementById('nsCategory').value;
+  const codeEl = document.getElementById('nsCodeVal');
+  const previewEl = document.getElementById('nsSkuPreview');
+  const chipsEl = document.getElementById('nsSkuChips');
+  if (!cat || !codeEl.textContent || codeEl.textContent === '—') { previewEl.style.display = 'none'; return; }
+  const sizes = Array.from(document.querySelectorAll('#nsSizePicker input:checked')).map(cb => cb.value);
+  if (!sizes.length) { previewEl.style.display = 'none'; return; }
+  const skus = nsColors.flatMap(color => sizes.map(size => `${codeEl.textContent}${color}/${size}`));
+  chipsEl.innerHTML = skus.map(s => `<span class="aoba-sku-tag">${s}</span>`).join('');
+  previewEl.style.display = 'block';
+}
+
+function saveNewStyle() {
+  const cat  = document.getElementById('nsCategory').value;
+  const name = document.getElementById('nsName').value.trim();
+  const code = document.getElementById('nsCodeVal').textContent;
+  const sizes = Array.from(document.querySelectorAll('#nsSizePicker input:checked')).map(cb => cb.value);
+  const err  = document.getElementById('nsError');
+  if (!cat)         { err.textContent = 'Select a category.'; return; }
+  if (!name)        { err.textContent = 'Enter a style name.'; return; }
+  if (!sizes.length){ err.textContent = 'Select at least one size.'; return; }
+  if (!code || code === '—') { err.textContent = 'Style code could not be generated.'; return; }
+  STYLES_DATA.push({ code, name, category:cat, status:'active',
+    colors:[...nsColors], sizes:[...sizes], skus: nsColors.length * sizes.length,
+    added: new Date().toISOString().slice(0,10) });
+  closeNewStyle();
+  renderStyles();
+  renderDashboard();
+  toast('Style created: ' + code, 'success');
+}
+
+// auto-login for preview/demo — placed last so all consts are initialized
+if (new URLSearchParams(location.search).has('demo')) {
+  document.getElementById('loginEmail').value = 'admin@aoba.com';
+  document.getElementById('loginPass').value  = 'admin123';
+  doLogin();
+}
+</script>
+</body>
+</html>

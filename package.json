@@ -1,0 +1,13 @@
+{
+  "name": "aoba-pmos",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AOBA Product Master OS — internal catalog management tool.",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "@anthropic-ai/sdk": "^0.32.1"
+  }
+}
