@@ -1645,8 +1645,6 @@
           </select>
           <select class="filter-select" id="auditActorFilter" onchange="renderAudit()">
             <option value="">All Team Members</option>
-            <option>Ayan Agarwal</option><option>Riya Mehta</option><option>Karan Joshi</option>
-            <option>Sneha Patil</option><option>Arjun Singh</option><option>Pooja Sharma</option>
           </select>
         </div>
         <div class="table-wrap">
@@ -2688,6 +2686,7 @@ async function loadAllData() {
     id: p.id, name: p.name, email: p.email, role: p.role, status: p.status,
     twoFA: p.two_fa, added: p.added_at, lastActive: p.last_active,
   }));
+  populateAuditActorFilter();
 
   pendingInvites = (invitesRes.data || []).map(i => ({
     id: i.id, email: i.email, role: i.role, invited: i.invited_at, status: i.status,
@@ -2708,6 +2707,16 @@ async function loadAllData() {
   // name here is a local lookup, not another network round trip.
   IMPORT_HISTORY.length = 0;
   IMPORT_HISTORY.push(...(importRes.data || []).map(mapImportHistoryFromApi));
+}
+
+// Replaces the Audit Trail "All Team Members" filter's hardcoded sample
+// names with your actual team, sorted alphabetically.
+function populateAuditActorFilter() {
+  const sel = document.getElementById('auditActorFilter');
+  if (!sel) return;
+  const names = [...new Set(users.map(u => u.name))].sort();
+  sel.innerHTML = '<option value="">All Team Members</option>' +
+    names.map(n => `<option>${n}</option>`).join('');
 }
 
 function mapAuditFromApi(a) {
