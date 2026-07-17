@@ -1,7 +1,9 @@
-// Catch-all for /api/users, /api/users/bulk, /api/users/:id — consolidated
-// into one file (was 3 separate files) to stay under Vercel Hobby's 12
-// serverless function limit. The URL paths the frontend calls are unchanged;
-// only the file layout on the server changed.
+// Handles /api/users, /api/users/bulk, /api/users/:id — consolidated into
+// one file (was 3 separate files) to stay under Vercel Hobby's 12
+// serverless function limit. vercel.json rewrites all three URL shapes here
+// (bracket-syntax catch-all routes turned out not to reliably match the
+// bare base path on Vercel's non-Next.js function builder — rewrites are
+// the deterministic alternative). The URLs the frontend calls are unchanged.
 //
 // GET    /api/users        — list all users. Requires view on User Management.
 // POST   /api/users/bulk   — { ids, action: 'activate'|'deactivate'|'remove' }. Requires edit.
@@ -14,7 +16,10 @@ const { writeAudit } = require('../_lib/audit');
 const VALID_BULK_ACTIONS = new Set(['activate', 'deactivate', 'remove']);
 
 module.exports = withErrorHandling(async (req, res) => {
-  const params = req.query.params || [];
+  // vercel.json rewrites /api/users(/*) here, forwarding the sub-path (if
+  // any) as ?path=... — a single string, since none of these routes ever
+  // need more than one segment (bare, /bulk, or /:id).
+  const params = req.query.path ? [req.query.path] : [];
 
   // GET /api/users
   if (params.length === 0) {

@@ -148,7 +148,9 @@ async function importEan(req, actor) {
 }
 
 module.exports = withErrorHandling(async (req, res) => {
-  const params = req.query.params || [];
+  // vercel.json rewrites /api/import/* here, forwarding the sub-path as
+  // ?path=... — always exactly one segment (history/styles/listings/ean).
+  const params = req.query.path ? [req.query.path] : [];
   if (params.length !== 1) throw new HttpError(404, 'Not found.');
   const route = params[0];
 

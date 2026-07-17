@@ -11,7 +11,10 @@ const { supabaseAdmin } = require('../_lib/supabaseAdmin');
 const { writeAudit } = require('../_lib/audit');
 
 module.exports = withErrorHandling(async (req, res) => {
-  const params = req.query.params || [];
+  // vercel.json rewrites /api/listings(/*) here, forwarding the sub-path
+  // (if any) as ?path=... — a single string, since these routes never need
+  // more than one segment (bare, or /:id).
+  const params = req.query.path ? [req.query.path] : [];
 
   // GET/POST /api/listings
   if (params.length === 0) {

@@ -5,5 +5,16 @@
       "source": "/(.*)",
       "headers": [{ "key": "X-Content-Type-Options", "value": "nosniff" }]
     }
+  ],
+  "rewrites": [
+    { "source": "/api/users", "destination": "/api/users/handler" },
+    { "source": "/api/users/:path*", "destination": "/api/users/handler?path=:path*" },
+    { "source": "/api/invites", "destination": "/api/invites/handler" },
+    { "source": "/api/invites/:path*", "destination": "/api/invites/handler?path=:path*" },
+    { "source": "/api/listings", "destination": "/api/listings/handler" },
+    { "source": "/api/listings/:path*", "destination": "/api/listings/handler?path=:path*" },
+    { "source": "/api/styles", "destination": "/api/styles/handler" },
+    { "source": "/api/styles/:path*", "destination": "/api/styles/handler?path=:path*" },
+    { "source": "/api/import/:path*", "destination": "/api/import/handler?path=:path*" }
   ]
 }
