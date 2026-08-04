@@ -44,7 +44,7 @@ async function writeImportHistory({ type, filename, imported, rawCsv, actor }) {
 }
 
 async function importStyles(req, actor) {
-  const { headers, dataRows, filename, rawCsv } = req.body || {};
+  const { headers, dataRows, filename, rawCsv, updateExisting } = req.body || {};
   if (!Array.isArray(headers) || !Array.isArray(dataRows)) throw new HttpError(400, 'Missing headers/dataRows.');
 
   const idIdx = headers.indexOf('Style ID');
@@ -60,16 +60,45 @@ async function importStyles(req, actor) {
   const { data: existing } = await supabaseAdmin.from('styles').select('code');
   const existingCodes = new Set((existing || []).map((s) => s.code));
 
-  let imported = 0;
+  let created = 0;
+  let updated = 0;
   const rowsToInsert = [];
+
   for (const row of dataRows) {
     const code = row[idIdx];
-    if (!code || existingCodes.has(code)) continue;
+    if (!code) continue;
 
-    const prefix = code.replace(/-\d.*$/, '');
-    const sizes = (row[sizeIdx] || 'S,M,L').split(',').map((s) => s.trim()).filter(Boolean);
+    const rawSizes = (row[sizeIdx] || '').trim();
     const images = imgIdx.map((i) => (i >= 0 ? (row[i] || '').trim() : '')).filter(Boolean).map(normalizeImageUrl);
 
+    if (existingCodes.has(code)) {
+      if (!updateExisting) continue;
+      // Only touch fields this row actually provided -- a blank cell means
+      // "didn't specify," not "clear this field," so partially-filled
+      // re-imports (e.g. just adding photos) can't accidentally blank out
+      // everything else. colors is intentionally never touched here: the
+      // code.slice(-1) guess used for brand-new styles isn't reliable
+      // enough to overwrite real existing color data.
+      const patch = {};
+      if (row[nameIdx]) patch.name = row[nameIdx];
+      if (row[statIdx]) patch.status = row[statIdx];
+      if (hsnIdx >= 0 && row[hsnIdx]) patch.hsn_code = row[hsnIdx];
+      if (mrpIdx >= 0 && row[mrpIdx]) patch.mrp = row[mrpIdx];
+      if (cpIdx >= 0 && row[cpIdx]) patch.cost_price = row[cpIdx];
+      if (descIdx >= 0 && row[descIdx]) patch.description = row[descIdx];
+      if (rawSizes) patch.sizes = rawSizes.split(',').map((s) => s.trim()).filter(Boolean);
+      if (images.length) patch.images = images;
+      if (!Object.keys(patch).length) continue;
+
+      patch.updated_at = new Date().toISOString();
+      const { error } = await supabaseAdmin.from('styles').update(patch).eq('code', code);
+      if (error) throw new HttpError(500, error.message);
+      updated++;
+      continue;
+    }
+
+    const prefix = code.replace(/-\d.*$/, '');
+    const sizes = (rawSizes || 'S,M,L').split(',').map((s) => s.trim()).filter(Boolean);
     rowsToInsert.push({
       code, name: row[nameIdx] || code, category: prefix,
       status: row[statIdx] || 'active',
@@ -80,7 +109,7 @@ async function importStyles(req, actor) {
       images, colors: [code.slice(-1)], sizes, created_by: actor.id,
     });
     existingCodes.add(code);
-    imported++;
+    created++;
   }
 
   if (rowsToInsert.length) {
@@ -88,8 +117,9 @@ async function importStyles(req, actor) {
     if (error) throw new HttpError(500, error.message);
   }
 
+  const imported = created + updated;
   const historyRow = await writeImportHistory({ type: 'styles', filename, imported, rawCsv, actor });
-  return { imported, importHistory: historyRow };
+  return { imported, created, updated, importHistory: historyRow };
 }
 
 async function importListings(req, actor) {

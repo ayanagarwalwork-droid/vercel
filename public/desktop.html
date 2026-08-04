@@ -1788,7 +1788,11 @@
               <span class="import-preview-title" id="importPreviewTitle"></span>
               <span class="import-preview-sub" id="importPreviewSub"></span>
             </div>
-            <div style="display:flex;gap:8px;align-items:center">
+            <div style="display:flex;gap:12px;align-items:center">
+              <label id="importUpdateExistingWrap" style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);cursor:pointer">
+                <input type="checkbox" id="importUpdateExisting" style="cursor:pointer">
+                Update existing styles instead of skipping them
+              </label>
               <button class="btn btn-outline" style="font-size:12px" onclick="clearImportPreview()">✕ Clear</button>
               <button class="btn btn-dark" style="font-size:12px" id="importConfirmBtn" onclick="confirmImport()">Confirm Import</button>
             </div>
@@ -4352,6 +4356,8 @@ function switchImportTab(type, btn) {
   const exportLabels = { styles:'Export current Styles data', listings:'Export current Listings data', ean:'Export current EAN data' };
   const expLbl = document.getElementById('importExportLabel');
   if (expLbl) expLbl.textContent = exportLabels[type];
+  const updateWrap = document.getElementById('importUpdateExistingWrap');
+  if (updateWrap) updateWrap.style.display = type === 'styles' ? 'flex' : 'none';
 }
 
 const IMPORT_TEMPLATES = {
@@ -4578,19 +4584,21 @@ async function confirmImport() {
   const p = window._importParsed;
   if (!p) return;
   const { headers, dataRows, filename } = p;
+  const updateExisting = currentImportTab === 'styles' && !!document.getElementById('importUpdateExisting')?.checked;
 
   let res;
   try {
-    res = await api.post(`/api/import/${currentImportTab}`, { headers, dataRows, filename, rawCsv: p.rawCsv });
+    res = await api.post(`/api/import/${currentImportTab}`, { headers, dataRows, filename, rawCsv: p.rawCsv, updateExisting });
   } catch (e) {
     toast(e.message || 'Import failed.', 'error');
     return;
   }
-  const imported = res.data.imported;
+  const { imported, created, updated } = res.data;
 
   // Re-fetch rather than hand-merge rows client-side — the server may have
-  // skipped/deduped rows in ways that are simplest to just reflect exactly
-  // as stored, and this keeps confirmImport() from needing its own mapping logic.
+  // skipped/deduped/updated rows in ways that are simplest to just reflect
+  // exactly as stored, and this keeps confirmImport() from needing its own
+  // mapping logic.
   const [stylesRes, listingsRes] = await Promise.all([api.get('/api/styles'), api.get('/api/listings')]);
   STYLES_DATA.length = 0; STYLES_DATA.push(...(stylesRes.data || []).map(mapStyleFromApi));
   LISTINGS_DATA.length = 0; LISTINGS_DATA.push(...(listingsRes.data || []).map(mapListingFromApi));
@@ -4598,7 +4606,10 @@ async function confirmImport() {
 
   IMPORT_HISTORY.unshift(mapImportHistoryFromApi(res.data.importHistory));
   renderImportHistory();
-  toast(`Imported ${imported} row${imported !== 1 ? 's' : ''} successfully.`, 'success');
+  const summary = (created !== undefined && updated !== undefined)
+    ? `Created ${created}, updated ${updated}.`
+    : `Imported ${imported} row${imported !== 1 ? 's' : ''} successfully.`;
+  toast(summary, 'success');
   clearImportPreview();
 }
 
