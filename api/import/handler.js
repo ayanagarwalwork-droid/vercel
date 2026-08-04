@@ -11,6 +11,20 @@ const { requireModulePermission, withErrorHandling, HttpError } = require('../_l
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
 const { writeAudit } = require('../_lib/audit');
 
+// Google Drive "share" links (drive.google.com/file/d/ID/view or
+// drive.google.com/open?id=ID) render an HTML viewer page, not an image, so
+// they'd show as broken photos if stored as-is. Convert to Drive's direct-
+// content URL instead — same logic as the manual "Add URLs" button in
+// desktop.html's Style Detail edit mode, duplicated here since CSV import
+// happens server-side, not through that client code path.
+function normalizeImageUrl(url) {
+  const fileMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (fileMatch) return `https://drive.google.com/uc?export=view&id=${fileMatch[1]}`;
+  const openMatch = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  if (openMatch) return `https://drive.google.com/uc?export=view&id=${openMatch[1]}`;
+  return url;
+}
+
 async function writeImportHistory({ type, filename, imported, rawCsv, actor }) {
   const { data: historyRow, error } = await supabaseAdmin
     .from('import_history')
@@ -54,7 +68,7 @@ async function importStyles(req, actor) {
 
     const prefix = code.replace(/-\d.*$/, '');
     const sizes = (row[sizeIdx] || 'S,M,L').split(',').map((s) => s.trim()).filter(Boolean);
-    const images = imgIdx.map((i) => (i >= 0 ? (row[i] || '').trim() : '')).filter(Boolean);
+    const images = imgIdx.map((i) => (i >= 0 ? (row[i] || '').trim() : '')).filter(Boolean).map(normalizeImageUrl);
 
     rowsToInsert.push({
       code, name: row[nameIdx] || code, category: prefix,
