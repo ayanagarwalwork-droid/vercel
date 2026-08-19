@@ -1,7 +1,7 @@
 # Setup — connecting the deployed app to real infrastructure
 
 All four phases are fully coded: schema, every API endpoint, and the entire frontend migration
-(auth, users, roles, styles, listings, EAN, import, audit, reports/search, AI Agent) are done
+(auth, users, roles, styles, listings, EAN, import, audit, reports/search, Stitch) are done
 and verified locally to load and run with zero JS errors. Nothing is connected to a real Supabase
 project yet — that's everything below, and it's entirely manual dashboard/account work (things
 only you can do) rather than more code.
@@ -28,10 +28,10 @@ In the Supabase dashboard, open **SQL Editor**, paste and run each file from
 4. `0004_sku_engine_function.sql` — the `create_style_with_code` RPC (race-condition-safe style
    code generation)
 5. `0005_storage_buckets.sql` — creates the public `style-images` bucket
-6. `0006_add_ai_agent_module.sql` — adds the `AI Agent` module (must run and commit on its own,
+6. `0006_add_ai_agent_module.sql` — adds the `Stitch` module (must run and commit on its own,
    separately from step 7 — Postgres won't let a new enum value be used in the same transaction
    that adds it)
-7. `0007_seed_ai_agent_permissions.sql` — grants `AI Agent` edit access to Founder/Admin, none to
+7. `0007_seed_ai_agent_permissions.sql` — grants `Stitch` edit access to Founder/Admin, none to
    everyone else by default (grant more roles from Roles & Permissions in-app once you've tried it)
 8. `0008_add_skus_table.sql` — adds the `skus` table (one row per style+color+size) and backfills it
    from existing styles. EAN now lives here, not on a Listing — see PROGRESS.md for why.
@@ -54,8 +54,8 @@ Copy `.env.example` to `.env.local` and fill in:
 - `SUPABASE_URL` — same Project URL as above
 - `SUPABASE_SERVICE_ROLE_KEY` — the service_role key (never commit this, never put it in anything
   under `public/`)
-- `ANTHROPIC_API_KEY` — from console.anthropic.com, powers the AI Agent page. Every other page
-  works fine without it; AI Agent will just return a clear "not configured yet" error until it's set.
+- `ANTHROPIC_API_KEY` — from console.anthropic.com, powers the Stitch page. Every other page
+  works fine without it; Stitch will just return a clear "not configured yet" error until it's set.
 - `SITE_URL` — `http://localhost:3000` for local dev; your real Vercel URL once deployed
 
 In Vercel (once the project exists, see step 8), set all four the same way under **Project
@@ -137,6 +137,6 @@ from step 4 before the first deploy.
 - Open Audit Trail (after logging back in, so it re-fetches) and confirm the actions above are
   all logged with the right actor name.
 
-**AI Agent**
+**Stitch**
 - Ask "how many active styles do we have?" and confirm the number matches the Dashboard stat
   exactly (that's the whole point of grounding it in real data instead of letting it guess).

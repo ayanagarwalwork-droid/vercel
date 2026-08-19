@@ -12,7 +12,7 @@ const MODULE_BY_PAGE_ID = {
   costing: 'Costing',
   search: 'Search',
   audit: 'Audit Trail',
-  agent: 'AI Agent',
+  agent: 'Stitch',
   import: 'Import',
   users: 'User Management',
   roles: 'Roles & Permissions',

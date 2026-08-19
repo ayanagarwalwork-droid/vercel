@@ -734,7 +734,7 @@
     .audit-actor { display:flex;align-items:center;gap:8px; }
     .audit-av { width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0; }
 
-    /* ── AI CHAT PAGE (used by AI Agent) ─────────────── */
+    /* ── AI CHAT PAGE (used by Stitch) ─────────────── */
     .copilot-layout { display:flex;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface);height:calc(100vh - 200px);min-height:500px; }
     .copilot-sidebar { width:220px;flex-shrink:0;border-right:1px solid var(--border);background:var(--surface2);display:flex;flex-direction:column;padding:20px 16px; }
     .copilot-sidebar-label { font-size:var(--label-size);letter-spacing:var(--label-ls);text-transform:uppercase;color:var(--text3);margin-bottom:12px;font-weight:600; }
@@ -1217,7 +1217,7 @@
         </a>
         <a class="nav-item" onclick="showPage('agent')">
           <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
-          AI Agent
+          Stitch
         </a>
         <a class="nav-item" onclick="showPage('import')">
           <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -1738,18 +1738,19 @@
         </div>
       </div>
 
-      <!-- ── AI AGENT ── -->
+      <!-- ── STITCH ── -->
       <div id="page-agent" class="page" style="padding-bottom:0">
         <div class="page-header">
           <div class="page-header-row">
             <div>
-              <div class="page-label">AI Agent</div>
+              <div class="page-label">Stitch</div>
               <div class="page-title">Queries and acts on the live catalog directly.</div>
             </div>
           </div>
         </div>
         <div class="copilot-layout">
           <div class="copilot-sidebar">
+            <button class="qa-btn" style="background:var(--accent);border-color:var(--accent);margin-bottom:16px" onclick="sendAgentQuickAction('Give me a feedback report on the catalog right now — what should I improve?')"><span class="qa-btn-icon">✨</span><span class="qa-btn-text" style="color:#fff;font-weight:600">Get Feedback</span></button>
             <div class="copilot-sidebar-label">Quick Actions</div>
             <button class="qa-btn" onclick="sendAgentQuickAction('How many listings have an unassigned EAN right now?')"><span class="qa-btn-icon">🔎</span><span class="qa-btn-text">Check unassigned EANs</span></button>
             <button class="qa-btn" onclick="sendAgentQuickAction('List styles with zero images')"><span class="qa-btn-icon">🖼</span><span class="qa-btn-text">Find styles missing images</span></button>
@@ -1760,7 +1761,7 @@
             <div class="chat-messages" id="agentChatMessages">
               <div class="chat-msg">
                 <div class="chat-av ai">A</div>
-                <div class="chat-bubble ai">I'm the AI Agent — I query the live database directly instead of working off a summary, and (if your role has edit access here) I can assign EANs, and change listing or style status on request.<br><br>What do you need?</div>
+                <div class="chat-bubble ai">I'm Stitch — I query the live database directly instead of working off a summary, and (if your role has edit access here) I can assign EANs, and change listing or style status on request. Hit <strong>Get Feedback</strong> anytime for a prioritized rundown of what needs attention.<br><br>What do you need?</div>
               </div>
             </div>
             <div class="chat-suggestions" id="agentChatSuggestions">
@@ -2460,11 +2461,11 @@ const SAMPLE_LISTINGS = [];
 
 const ROLES = [
   { name: 'Founder',          emoji: '👑', color: '#8B6914', bg: 'rgba(139,105,20,0.1)',
-    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'],
-    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'] },
+    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','Stitch','Import','User Management','Roles & Permissions','Settings','Guide'],
+    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','Stitch','Import','User Management','Roles & Permissions','Settings','Guide'] },
   { name: 'Admin',            emoji: '🛡', color: '#5A3E8A', bg: 'rgba(90,62,138,0.1)',
-    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'],
-    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','AI Agent','Import','User Management','Roles & Permissions','Settings'] },
+    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','Stitch','Import','User Management','Roles & Permissions','Settings','Guide'],
+    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','Stitch','Import','User Management','Roles & Permissions','Settings'] },
   { name: 'Merchandising',    emoji: '🛍', color: '#2D6A4F', bg: 'rgba(45,106,79,0.1)',
     perms:     ['Dashboard','Styles','Listings','Reports','Search'],
     editPerms: ['Styles','Listings'] },
@@ -2584,7 +2585,7 @@ let listingsCatActive = '';
 // Grouped sections — mirrors real sidebar order
 const PERM_SECTIONS = [
   { label: 'Core',  modules: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing'] },
-  { label: 'Tools', modules: ['Search','Audit Trail','AI Agent','Import'] },
+  { label: 'Tools', modules: ['Search','Audit Trail','Stitch','Import'] },
   { label: 'Admin', modules: ['User Management','Roles & Permissions','Settings','Guide'] },
 ];
 const ALL_PERMS = PERM_SECTIONS.flatMap(s => s.modules);
@@ -4491,7 +4492,7 @@ function renderAudit() {
   }).join('');
 }
 
-// ── AI AGENT ──────────────────────────────────────────────────────────────
+// ── STITCH ──────────────────────────────────────────────────────────────
 let _agentChatHistory = [];
 
 function sendAgentQuickAction(text) {

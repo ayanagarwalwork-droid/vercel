@@ -1,7 +1,7 @@
 // POST /api/agent/chat { message, history }
 // A real tool-using agent: Claude decides which read/write tools to call, we
 // execute them against Supabase, and loop until it has a final answer.
-// Requires view on "AI Agent" to chat at all; the write-action tools
+// Requires view on "Stitch" to chat at all; the write-action tools
 // additionally require edit — enforced per-call in executeTool(), not just
 // at the door, since a view-level caller could otherwise ask the model to
 // invoke one and get an error instead of a silent bypass.
@@ -18,7 +18,7 @@ const MAX_ROWS = 100;
 let anthropic;
 function getAnthropicClient() {
   if (!process.env.ANTHROPIC_API_KEY) {
-    throw new HttpError(500, 'AI Agent is not configured yet (missing ANTHROPIC_API_KEY).');
+    throw new HttpError(500, 'Stitch is not configured yet (missing ANTHROPIC_API_KEY).');
   }
   if (!anthropic) anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   return anthropic;
@@ -89,6 +89,11 @@ const TOOLS = [
     },
   },
   {
+    name: 'get_catalog_health_summary',
+    description: 'One-shot aggregate snapshot of catalog data quality and recent activity — counts for missing images/EANs/costing, listing status breakdown, and how long since the last import. Use this first when asked for feedback, a health check, or "what should I improve" — it is cheaper and more complete than piecing the picture together from several search_* calls.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
     name: 'assign_ean',
     description: 'Assign an EAN/barcode to a SKU. Requires edit access.',
     input_schema: {
@@ -135,7 +140,7 @@ function clampLimit(n, fallback) {
 
 async function executeTool(name, input, actor, level) {
   if (WRITE_TOOLS.has(name) && level !== 'edit') {
-    return { error: 'This action requires edit access to AI Agent, which your role does not have.' };
+    return { error: 'This action requires edit access to Stitch, which your role does not have.' };
   }
 
   if (name === 'search_styles') {
@@ -194,6 +199,51 @@ async function executeTool(name, input, actor, level) {
     return { rows: data };
   }
 
+  if (name === 'get_catalog_health_summary') {
+    const [
+      { count: totalStyles },
+      { count: activeStyles },
+      { count: totalSkus },
+      { count: skusMissingEan },
+      { count: totalListings },
+      { count: liveListings },
+      { count: pendingListings },
+      { count: draftListings },
+      { data: styleImageRows },
+      { data: costedStyleCodes },
+      { data: recentAudit },
+      { data: recentImports },
+    ] = await Promise.all([
+      supabaseAdmin.from('styles').select('*', { count: 'exact', head: true }),
+      supabaseAdmin.from('styles').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+      supabaseAdmin.from('skus').select('*', { count: 'exact', head: true }),
+      supabaseAdmin.from('skus').select('*', { count: 'exact', head: true }).eq('ean_status', 'unassigned'),
+      supabaseAdmin.from('listings').select('*', { count: 'exact', head: true }),
+      supabaseAdmin.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'live'),
+      supabaseAdmin.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabaseAdmin.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'draft'),
+      supabaseAdmin.from('styles').select('images'),
+      supabaseAdmin.from('style_costing_items').select('style_code'),
+      supabaseAdmin.from('audit_log').select('ts, actor_name, action, entity, detail').order('ts', { ascending: false }).limit(8),
+      supabaseAdmin.from('import_history').select('date, type, row_count, status').order('created_at', { ascending: false }).limit(5),
+    ]);
+
+    const stylesMissingImages = (styleImageRows || []).filter((s) => !s.images || !s.images.length).length;
+    const codedStyles = new Set((costedStyleCodes || []).map((r) => r.style_code));
+    const stylesMissingCosting = (totalStyles || 0) - codedStyles.size;
+    const daysSinceLastImport = recentImports?.[0]
+      ? Math.floor((Date.now() - new Date(recentImports[0].date)) / 86400000)
+      : null;
+
+    return {
+      styles: { total: totalStyles, active: activeStyles, missingImages: stylesMissingImages, missingCosting: Math.max(stylesMissingCosting, 0) },
+      skus: { total: totalSkus, missingEan: skusMissingEan },
+      listings: { total: totalListings, live: liveListings, pending: pendingListings, draft: draftListings },
+      daysSinceLastImport,
+      recentAudit, recentImports,
+    };
+  }
+
   if (name === 'assign_ean') {
     const { sku, ean } = input;
     if (!/^\d{8}$|^\d{12,14}$/.test(String(ean || ''))) {
@@ -208,7 +258,7 @@ async function executeTool(name, input, actor, level) {
 
     await writeAudit({
       profile: actor, action: 'assign', entity: 'EAN',
-      detail: `Assigned EAN ${ean} to SKU ${sku} (via AI Agent)`,
+      detail: `Assigned EAN ${ean} to SKU ${sku} (via Stitch)`,
     });
     return { ok: true, sku: updated };
   }
@@ -229,7 +279,7 @@ async function executeTool(name, input, actor, level) {
 
     await writeAudit({
       profile: actor, action: 'update', entity: 'Listing',
-      detail: `Updated listing ${updated.sku} on ${updated.marketplace} — status: ${updated.status} (via AI Agent)`,
+      detail: `Updated listing ${updated.sku} on ${updated.marketplace} — status: ${updated.status} (via Stitch)`,
     });
     return { ok: true, listing: updated };
   }
@@ -247,7 +297,7 @@ async function executeTool(name, input, actor, level) {
 
     await writeAudit({
       profile: actor, action: 'update', entity: 'Style',
-      detail: `Marked style ${style_code} ${status} (via AI Agent)`,
+      detail: `Marked style ${style_code} ${status} (via Stitch)`,
     });
     return { ok: true, style: updated };
   }
@@ -258,7 +308,7 @@ async function executeTool(name, input, actor, level) {
 module.exports = withErrorHandling(async (req, res) => {
   if (req.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
 
-  const { profile: actor, level } = await requireModulePermission(req, 'AI Agent', 'view');
+  const { profile: actor, level } = await requireModulePermission(req, 'Stitch', 'view');
 
   const message = String(req.body?.message || '').trim();
   if (!message) throw new HttpError(400, 'Message is required.');
@@ -266,13 +316,19 @@ module.exports = withErrorHandling(async (req, res) => {
 
   const client = getAnthropicClient();
   const systemPrompt =
-    "You are AOBA PMOS's AI Agent. You can query the live catalog database yourself via " +
+    "You are AOBA PMOS's Stitch. You can query the live catalog database yourself via " +
     'tools, and — for users with edit access — take a small set of ' +
     'well-defined actions (assign an EAN, change a listing status, change a style status). ' +
     'Always look up real data with a tool before answering factual questions; never guess at ' +
     "SKUs, styles, or counts. Before calling a write tool, briefly state what you're about to " +
     'do. If a write tool returns a permission error, tell the user plainly that their role ' +
-    "lacks edit access rather than retrying.";
+    "lacks edit access rather than retrying.\n\n" +
+    'When asked for feedback, a health check, or "what should I improve" — call ' +
+    'get_catalog_health_summary first, then reply with a short, concrete, prioritized list ' +
+    '(most urgent/highest-impact first). Cite real numbers from the tool, not estimates. ' +
+    'For each point, name the specific screen/action to fix it (e.g. "12 SKUs have no EAN — ' +
+    'assign them from the EAN / Barcode page or a bulk EAN import"). Skip categories that are ' +
+    'already clean rather than padding the list. If nothing needs attention, say so plainly.';
 
   const messages = [...history, { role: 'user', content: message }];
 

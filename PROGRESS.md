@@ -23,7 +23,7 @@ Needs `.env.local` (copy from `.env.example`) with real Supabase credentials —
 ## Modules (all implemented per README)
 
 Dashboard, Styles, Listings, EAN/Barcode, Reports, Costing, Search, Audit Trail, Import,
-User Management, Roles & Permissions, AI Agent, Settings, Guide.
+User Management, Roles & Permissions, Stitch, Settings, Guide.
 
 API routes under `api/`: `_lib`, `agent`, `audit`, `auth`, `ean`, `import`,
 `invites`, `listings`, `roles`, `styles`, `users`. That's 10 of Vercel Hobby's 12-function cap —
@@ -90,7 +90,7 @@ per-style editable Overhead % (defaults 15%), to Total Cost.
   item per style. New `styles.overhead_pct` column (default 15), also added in 0011.
 - New module `Costing` (migration `0010_add_costing_module.sql` — must run and commit alone
   first, same enum restriction as 0006/0009). Default permissions: none for everyone except
-  Founder/Admin (edit) — conservative default, same pattern as AI Agent.
+  Founder/Admin (edit) — conservative default, same pattern as Stitch.
 - Backend: folded into `api/styles/handler.js` as a `costing` sub-route (`GET`/`POST
   /api/styles/costing`) rather than a new serverless function — the app was already at 11/12 of
   Vercel Hobby's function cap.
@@ -108,22 +108,39 @@ explicitly said "will tell later — remember it for now that you have to ask it
 about this the next time Costing comes up**, don't just decide it. Right now `cost_price` and the
 new costing breakdown are completely independent — Total Cost does not touch `cost_price`.
 
-## AI Agent (the only AI chat feature now — AI Copilot was removed)
+## Stitch (the only AI chat feature now — AI Copilot was removed; renamed from "AI Agent")
+
+Renamed via migration `0012_rename_ai_agent_to_stitch.sql` (`alter type app_module rename value
+'AI Agent' to 'Stitch'` — renames every existing `role_permissions` row in place, no data
+migration needed, unlike adding a new enum value this doesn't need to run in isolation but was
+kept as its own migration file for consistency anyway).
 
 `api/agent/chat.js` — a real tool-using agent (Sonnet). It queries Supabase live via read tools
-(`search_styles`, `search_listings`, `search_skus`, `get_audit_log`, `get_import_history`) and,
-only for callers with **edit** access to the `AI Agent` module, can invoke a small whitelisted set
-of write tools (`assign_ean`, `update_listing_status`, `update_style_status`) — each one mirrors
-an existing manual endpoint's validation and writes the same audit log entry (tagged "via AI
-Agent"). View-only access to the module still allows chat/read tools, just not the write ones —
+(`search_styles`, `search_listings`, `search_skus`, `get_audit_log`, `get_import_history`,
+`get_catalog_health_summary`) and, only for callers with **edit** access to the `Stitch` module,
+can invoke a small whitelisted set of write tools (`assign_ean`, `update_listing_status`,
+`update_style_status`) — each one mirrors an existing manual endpoint's validation and writes the
+same audit log entry (tagged "via Stitch"). View-only access to the module still allows chat/read
+tools, just not the write ones — enforced per-call server-side, not just at the door.
+
+**"Get Feedback" quick action** (per explicit request: "should give me feedback time to time on
+what I can improve"): a prominent button on the Stitch page sends a prompt asking for a
+prioritized improvement report. `get_catalog_health_summary` is a dedicated one-shot tool
+(counts: missing images/EAN/costing, listing status breakdown, days since last import, recent
+audit+import activity) so the model doesn't have to piece this together from several slower
+`search_*` calls — the system prompt tells it to call this tool first whenever asked for
+feedback/a health check. **Deliberately on-demand, not scheduled** — the user chose "on-demand
+button" over "automatic scheduled digest" (which would need a new table, Vercel Cron, and a
+notification UI) when asked to pick; that's a real follow-up to build later if they want it, not
+implemented now.
 enforced per-call server-side, not just at the door.
 
-New DB migrations `0006_add_ai_agent_module.sql` (adds the `AI Agent` enum value — must be run
+New DB migrations `0006_add_ai_agent_module.sql` (adds the `Stitch` enum value — must be run
 and committed on its own) and `0007_seed_ai_agent_permissions.sql` (grants edit to Founder/Admin
 only by default; grant more roles via Roles & Permissions in-app). Confirmed working live.
 
 **AI Copilot was removed** (originally a simpler stats-snapshot-only chat, Haiku-based, no tool
-use — superseded by AI Agent). Removed: `api/copilot/` (whole folder, deleted), the `page-ai`
+use — superseded by Stitch). Removed: `api/copilot/` (whole folder, deleted), the `page-ai`
 frontend page/nav item/JS in `desktop.html`, and all `AI Copilot` references from ROLES fallback
 perms, `PERM_SECTIONS`, and the Guide article text. The `AI Copilot` value in the `app_module`
 Postgres enum and any `role_permissions` rows referencing it were **not** removed (Postgres can't
