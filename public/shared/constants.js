@@ -9,6 +9,7 @@ const MODULE_BY_PAGE_ID = {
   listings: 'Listings',
   ean: 'EAN / Barcode',
   reports: 'Reports',
+  costing: 'Costing',
   search: 'Search',
   audit: 'Audit Trail',
   ai: 'AI Copilot',

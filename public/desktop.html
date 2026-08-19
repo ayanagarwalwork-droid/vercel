@@ -1203,6 +1203,10 @@
           <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           Reports
         </a>
+        <a class="nav-item" onclick="showPage('costing')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1.5 1.5-2 2.5-2s2.5.5 2.5 2-1.5 2-2.5 2-2.5.5-2.5 2 1.5 2 2.5 2 2.5-.5 2.5-2"/></svg>
+          Costing
+        </a>
         <a class="nav-item" onclick="showPage('search')">
           <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           Search
@@ -1649,6 +1653,38 @@
         </div>
         <div class="report-tabs" id="reportsTabs"></div>
         <div class="report-content" id="reportsContent"></div>
+      </div>
+      <!-- ── COSTING ── -->
+      <div id="page-costing" class="page">
+        <div class="page-header">
+          <div class="page-header-row">
+            <div>
+              <div class="page-label">Costing</div>
+              <div class="page-title">What everything costs to make.</div>
+            </div>
+            <div class="page-header-right">Styles<br><span style="font-family:var(--font-display);font-size:28px;color:var(--text)" id="costingTotalHdr">0</span></div>
+          </div>
+        </div>
+        <div class="filter-row">
+          <div class="filter-search">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="costingSearch" placeholder="Search style code or name…" oninput="renderCosting()" />
+          </div>
+          <select class="filter-select" id="costingStatusFilter" onchange="renderCosting()">
+            <option value="">All Status</option>
+            <option value="done">Costed</option>
+            <option value="pending">Not Costed Yet</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th></th><th>Style Code</th><th>Name</th><th>Category</th><th>SKU Cost</th><th>Overhead</th><th>Total Cost</th><th></th>
+            </tr></thead>
+            <tbody id="costingTbody"></tbody>
+          </table>
+          <div id="costingEmpty" class="empty-state" style="display:none">No styles match your filters.</div>
+        </div>
       </div>
       <!-- ── SEARCH ── -->
       <div id="page-search" class="page">
@@ -2377,6 +2413,42 @@
   </div>
 </div>
 
+<div class="overlay" id="costingModal" onclick="if(event.target===this)closeCosting()">
+  <div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="costTitle">—</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--font-ui);letter-spacing:0.05em" id="costCode">—</div>
+      </div>
+      <button class="modal-close" onclick="closeCosting()">✕</button>
+    </div>
+    <div style="display:flex;gap:16px;margin-bottom:16px">
+      <img id="costImage" src="" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:none" />
+      <div style="flex:1;font-size:12px;color:var(--text2);line-height:1.6" id="costDesc"></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Item</th><th style="width:110px">Consumption</th><th style="width:100px">Rate</th><th style="width:110px">Amount</th><th style="width:36px"></th></tr></thead>
+        <tbody id="costItemsBody"></tbody>
+      </table>
+    </div>
+    <button type="button" class="btn btn-outline" style="margin-top:10px;font-size:11px;padding:5px 12px" onclick="addCostingRow()">+ Add Item</button>
+    <div class="sd-grid" style="margin-top:16px;grid-template-columns:1fr 1fr 1fr">
+      <div class="sd-field"><div class="sd-label">SKU Cost</div><div id="costSkuCost" style="font-family:var(--font-display);font-size:20px;font-style:italic">₹0</div></div>
+      <div class="sd-field">
+        <div class="sd-label">Overhead %</div>
+        <input type="number" id="costOverheadPct" value="15" min="0" step="0.1" oninput="recalcCosting()" style="width:100%;border:none;background:transparent;font-family:var(--font-display);font-size:20px;font-style:italic;color:var(--text);padding:0;outline:none" />
+      </div>
+      <div class="sd-field"><div class="sd-label">Total Cost</div><div id="costTotalCost" style="font-family:var(--font-display);font-size:20px;font-style:italic;color:var(--accent)">₹0</div></div>
+    </div>
+    <div class="modal-error" id="costError"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeCosting()">Cancel</button>
+      <button class="btn btn-dark" onclick="saveCosting()">Save Costing</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="shared/constants.js"></script>
 <script src="shared/supabase-client.js"></script>
@@ -2434,11 +2506,11 @@ const SAMPLE_LISTINGS = [];
 
 const ROLES = [
   { name: 'Founder',          emoji: '👑', color: '#8B6914', bg: 'rgba(139,105,20,0.1)',
-    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'],
-    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'] },
+    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'],
+    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'] },
   { name: 'Admin',            emoji: '🛡', color: '#5A3E8A', bg: 'rgba(90,62,138,0.1)',
-    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'],
-    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings'] },
+    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'],
+    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings'] },
   { name: 'Merchandising',    emoji: '🛍', color: '#2D6A4F', bg: 'rgba(45,106,79,0.1)',
     perms:     ['Dashboard','Styles','Listings','Reports','Search','AI Copilot'],
     editPerms: ['Styles','Listings'] },
@@ -2548,13 +2620,16 @@ const LISTINGS_DATA = [];
 // One row per style+color+size — EAN lives here, not on a Listing.
 const SKUS_DATA = [];
 
+// Flat list of cost-breakdown line items across all styles (style_code on each row).
+const COSTING_ITEMS = [];
+
 // active filter state for category chips
 let stylesCatActive = '';
 let listingsCatActive = '';
 
 // Grouped sections — mirrors real sidebar order
 const PERM_SECTIONS = [
-  { label: 'Core',  modules: ['Dashboard','Styles','Listings','EAN / Barcode','Reports'] },
+  { label: 'Core',  modules: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Costing'] },
   { label: 'Tools', modules: ['Search','Audit Trail','AI Copilot','AI Agent','Import'] },
   { label: 'Admin', modules: ['User Management','Roles & Permissions','Settings','Guide'] },
 ];
@@ -2761,7 +2836,7 @@ async function completeLogin() {
   initCatDropdown('stylesCatFilter'); initCatDropdown('listingsCatFilter');
   renderTable(); renderRoles(); updateStats(); renderPendingInvites();
   renderStyles(); renderListings(); renderDashboard(); renderReports();
-  renderEAN(); renderAudit(); renderImportHistory(); renderSearchRecents();
+  renderEAN(); renderAudit(); renderImportHistory(); renderSearchRecents(); renderCosting();
   showPage(pg);
 }
 
@@ -2770,13 +2845,14 @@ async function completeLogin() {
 // STYLES_DATA/LISTINGS_DATA/AUDIT_LOG/IMPORT_HISTORY stay empty for now —
 // those pages are wired up in later phases.
 async function loadAllData() {
-  const [usersRes, invitesRes, permsRes, stylesRes, listingsRes, skusRes, auditRes, importRes] = await Promise.all([
+  const [usersRes, invitesRes, permsRes, stylesRes, listingsRes, skusRes, costingRes, auditRes, importRes] = await Promise.all([
     api.get('/api/users'),
     api.get('/api/invites'),
     api.get('/api/roles/permissions'),
     api.get('/api/styles'),
     api.get('/api/listings'),
     api.get('/api/ean'),
+    api.get('/api/styles/costing'),
     api.get('/api/audit'),
     api.get('/api/import/history'),
   ]);
@@ -2801,6 +2877,9 @@ async function loadAllData() {
 
   SKUS_DATA.length = 0;
   SKUS_DATA.push(...(skusRes.data || []).map(mapSkuFromApi));
+
+  COSTING_ITEMS.length = 0;
+  COSTING_ITEMS.push(...(costingRes.data || []).map(mapCostingItemFromApi));
 
   AUDIT_LOG.length = 0;
   AUDIT_LOG.push(...(auditRes.data || []).map(mapAuditFromApi));
@@ -2843,7 +2922,7 @@ function mapStyleFromApi(s) {
     code: s.code, name: s.name, category: s.category, status: s.status,
     colors: s.colors || [], sizes: s.sizes || [], skus: s.sku_count,
     mrp: s.mrp, costPrice: s.cost_price, hsn: s.hsn_code, description: s.description,
-    images: s.images || [], added: s.added_at,
+    images: s.images || [], added: s.added_at, overheadPct: s.overhead_pct,
   };
 }
 function mapListingFromApi(l) {
@@ -3017,6 +3096,7 @@ function showPage(id) {
     if (n.getAttribute('onclick')?.includes(`'${id}'`)) n.classList.add('active');
   });
   if (id === 'reports') renderReports();
+  if (id === 'costing') renderCosting();
   if (id === 'roles') renderPermPanel();
   if (id === 'guide') {
     const first = document.querySelector('.guide-nav-item');
@@ -4194,6 +4274,141 @@ function renderEAN() {
       </div></td>
     </tr>`;
   }).join('');
+}
+
+// ── COSTING ───────────────────────────────────────────────────────────────
+// Default item list matches the team's existing per-style Excel costing
+// sheets. It's a starting point shown for styles with no costing entered
+// yet, not a fixed schema — Save Costing persists whatever rows are on
+// screen (defaults, edits, added/removed rows) as-is.
+const DEFAULT_COSTING_ITEMS = ['Fabric','Cups','swimwear tap','Buckle','Cutting','Stiching','Finish/Pack','Tag','Photoshoot','Thread','Pattern'];
+
+function mapCostingItemFromApi(c) {
+  return { id: c.id, styleCode: c.style_code, item: c.item, consumption: +c.consumption, rate: +c.rate };
+}
+
+function costingTotalsFor(code, overheadPct) {
+  const items = COSTING_ITEMS.filter(c => c.styleCode === code);
+  const skuCost = items.reduce((sum, c) => sum + (c.consumption * c.rate), 0);
+  const overhead = skuCost * ((overheadPct || 0) / 100);
+  return { skuCost, overhead, totalCost: skuCost + overhead, hasItems: items.length > 0 };
+}
+
+function renderCosting() {
+  const q  = document.getElementById('costingSearch').value.toLowerCase();
+  const sf = document.getElementById('costingStatusFilter').value;
+  const rows = STYLES_DATA.filter(s => {
+    const t = costingTotalsFor(s.code, s.overheadPct);
+    return (!q || s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)) &&
+      (!sf || (sf === 'done' ? t.hasItems : !t.hasItems));
+  });
+  document.getElementById('costingTotalHdr').textContent = STYLES_DATA.length;
+
+  const tbody = document.getElementById('costingTbody');
+  const empty = document.getElementById('costingEmpty');
+  if (!rows.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = rows.map(s => {
+    const cm = catMeta(s.category);
+    const t = costingTotalsFor(s.code, s.overheadPct);
+    const img = (s.images||[])[0];
+    return `<tr>
+      <td>${img ? `<img src="${img}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">` : '<div style="width:36px;height:36px;border-radius:6px;background:var(--surface2)"></div>'}</td>
+      <td><span class="style-code">${s.code}</span></td>
+      <td style="font-weight:500">${s.name}</td>
+      <td><span class="cat-badge" style="background:${cm.bg};color:${cm.color}">${s.category}</span></td>
+      <td>${t.hasItems ? '₹' + t.skuCost.toFixed(2) : '—'}</td>
+      <td>${t.hasItems ? (s.overheadPct ?? 0) + '%' : '—'}</td>
+      <td style="font-weight:600">${t.hasItems ? '₹' + t.totalCost.toFixed(2) : '—'}</td>
+      <td><button class="tbl-btn" onclick="openCosting('${s.code}')">${t.hasItems ? 'Edit' : 'Add Costing'}</button></td>
+    </tr>`;
+  }).join('');
+}
+
+let costingCurrentCode = null;
+
+function openCosting(code) {
+  const s = STYLES_DATA.find(x => x.code === code);
+  if (!s) return;
+  costingCurrentCode = code;
+
+  document.getElementById('costTitle').textContent = s.name;
+  document.getElementById('costCode').textContent = s.code;
+  document.getElementById('costDesc').textContent = s.description || '';
+  const img = document.getElementById('costImage');
+  if ((s.images||[])[0]) { img.src = s.images[0]; img.style.display = ''; } else { img.style.display = 'none'; }
+  document.getElementById('costOverheadPct').value = s.overheadPct ?? 15;
+  document.getElementById('costError').textContent = '';
+
+  let items = COSTING_ITEMS.filter(c => c.styleCode === code).map(c => ({ item: c.item, consumption: c.consumption, rate: c.rate }));
+  if (!items.length) items = DEFAULT_COSTING_ITEMS.map(name => ({ item: name, consumption: '', rate: '' }));
+
+  document.getElementById('costItemsBody').innerHTML = '';
+  items.forEach(it => addCostingRow(it.item, it.consumption, it.rate));
+  recalcCosting();
+
+  document.getElementById('costingModal').classList.add('open');
+}
+
+function closeCosting() {
+  document.getElementById('costingModal').classList.remove('open');
+  costingCurrentCode = null;
+}
+
+function addCostingRow(item, consumption, rate) {
+  const tbody = document.getElementById('costItemsBody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="cost-item-name" value="${item||''}" placeholder="Item name" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--font-ui)"></td>
+    <td><input type="number" class="cost-item-consumption" value="${consumption ?? ''}" step="0.001" min="0" oninput="recalcCosting()" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--font-ui)"></td>
+    <td><input type="number" class="cost-item-rate" value="${rate ?? ''}" step="0.01" min="0" oninput="recalcCosting()" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--font-ui)"></td>
+    <td class="cost-item-amount" style="font-size:12px;color:var(--text2)">₹0.00</td>
+    <td><button type="button" class="modal-close" style="font-size:14px" onclick="this.closest('tr').remove();recalcCosting()">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function recalcCosting() {
+  let skuCost = 0;
+  document.querySelectorAll('#costItemsBody tr').forEach(tr => {
+    const consumption = parseFloat(tr.querySelector('.cost-item-consumption').value) || 0;
+    const rate = parseFloat(tr.querySelector('.cost-item-rate').value) || 0;
+    const amount = consumption * rate;
+    tr.querySelector('.cost-item-amount').textContent = '₹' + amount.toFixed(2);
+    skuCost += amount;
+  });
+  const overheadPct = parseFloat(document.getElementById('costOverheadPct').value) || 0;
+  const overhead = skuCost * (overheadPct / 100);
+  document.getElementById('costSkuCost').textContent = '₹' + skuCost.toFixed(2);
+  document.getElementById('costTotalCost').textContent = '₹' + (skuCost + overhead).toFixed(2);
+}
+
+async function saveCosting() {
+  const code = costingCurrentCode;
+  if (!code) return;
+  const items = [...document.querySelectorAll('#costItemsBody tr')].map(tr => ({
+    item: tr.querySelector('.cost-item-name').value.trim(),
+    consumption: parseFloat(tr.querySelector('.cost-item-consumption').value) || 0,
+    rate: parseFloat(tr.querySelector('.cost-item-rate').value) || 0,
+  })).filter(it => it.item);
+  const overhead_pct = parseFloat(document.getElementById('costOverheadPct').value) || 0;
+
+  let res;
+  try {
+    res = await api.post('/api/styles/costing', { style_code: code, items, overhead_pct });
+  } catch (e) {
+    document.getElementById('costError').textContent = e.message || 'Failed to save costing.';
+    return;
+  }
+
+  const s = STYLES_DATA.find(x => x.code === code);
+  if (s) s.overheadPct = overhead_pct;
+  const remaining = COSTING_ITEMS.filter(c => c.styleCode !== code);
+  COSTING_ITEMS.length = 0;
+  COSTING_ITEMS.push(...remaining, ...(res.data || []).map(mapCostingItemFromApi));
+
+  closeCosting();
+  renderCosting();
+  toast('Costing saved for ' + code, 'success');
 }
 
 // ── GLOBAL SEARCH ─────────────────────────────────────────────────────────

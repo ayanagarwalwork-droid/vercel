@@ -6,6 +6,8 @@
 // GET    /api/styles              — full list. Requires view on Styles.
 // POST   /api/styles              — create via the SKU Engine RPC. Requires edit.
 // POST   /api/styles/upload-image — mint a signed Storage upload URL. Requires edit.
+// GET    /api/styles/costing      — every style's cost-breakdown line items, flat. Requires view on Costing.
+// POST   /api/styles/costing      — replace one style's line items + its overhead %. Requires edit on Costing.
 // GET    /api/styles/:code        — one style. Requires view.
 // PATCH  /api/styles/:code        — edit name/status/hsn/mrp/cost/description/images/sizes. Requires edit.
 // DELETE /api/styles/:code        — requires edit.
@@ -80,6 +82,67 @@ module.exports = withErrorHandling(async (req, res) => {
     if (error) throw new HttpError(500, error.message);
 
     return res.status(200).json({ data: { signedUrl: data.signedUrl, token: data.token, path } });
+  }
+
+  // GET/POST /api/styles/costing — bill-of-materials cost breakdown.
+  // GET returns every style's line items flat (style_code on each row) so
+  // the Costing overview page can compute per-style rollups client-side,
+  // same pattern the rest of the app already uses. POST replaces the full
+  // item set for one style (simplest correct semantics for a "save the
+  // whole grid" editor — no per-row add/remove endpoints to keep in sync).
+  if (params.length === 1 && params[0] === 'costing') {
+    if (req.method === 'GET') {
+      await requireModulePermission(req, 'Costing', 'view');
+      const { data, error } = await supabaseAdmin
+        .from('style_costing_items').select('*').order('style_code').order('sort_order');
+      if (error) throw new HttpError(500, error.message);
+      return res.status(200).json({ data });
+    }
+
+    if (req.method === 'POST') {
+      const { profile: actor } = await requireModulePermission(req, 'Costing', 'edit');
+
+      const { style_code, items, overhead_pct } = req.body || {};
+      if (!style_code) throw new HttpError(400, 'style_code is required.');
+      if (!Array.isArray(items)) throw new HttpError(400, 'items must be an array.');
+
+      const { data: style, error: findErr } = await supabaseAdmin
+        .from('styles').select('code').eq('code', style_code).maybeSingle();
+      if (findErr) throw new HttpError(500, findErr.message);
+      if (!style) throw new HttpError(404, `Style not found: ${style_code}`);
+
+      const { error: delErr } = await supabaseAdmin.from('style_costing_items').delete().eq('style_code', style_code);
+      if (delErr) throw new HttpError(500, delErr.message);
+
+      const rows = items
+        .filter((it) => it.item && String(it.item).trim())
+        .map((it, i) => ({
+          style_code, item: String(it.item).trim(),
+          consumption: it.consumption || 0, rate: it.rate || 0, sort_order: i,
+        }));
+      if (rows.length) {
+        const { error: insErr } = await supabaseAdmin.from('style_costing_items').insert(rows);
+        if (insErr) throw new HttpError(500, insErr.message);
+      }
+
+      if (overhead_pct !== undefined) {
+        const { error: ohErr } = await supabaseAdmin
+          .from('styles').update({ overhead_pct: overhead_pct || 0, updated_at: new Date().toISOString() }).eq('code', style_code);
+        if (ohErr) throw new HttpError(500, ohErr.message);
+      }
+
+      await writeAudit({
+        profile: actor, action: 'update', entity: 'Costing',
+        detail: `Updated costing for style ${style_code}`,
+      });
+
+      const { data: refreshed, error: refErr } = await supabaseAdmin
+        .from('style_costing_items').select('*').eq('style_code', style_code).order('sort_order');
+      if (refErr) throw new HttpError(500, refErr.message);
+      return res.status(200).json({ data: refreshed });
+    }
+
+    throw new HttpError(405, 'Method not allowed.');
   }
 
   // GET/PATCH/DELETE /api/styles/:code

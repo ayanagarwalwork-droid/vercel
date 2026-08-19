@@ -37,6 +37,10 @@ In the Supabase dashboard, open **SQL Editor**, paste and run each file from
    from existing styles. EAN now lives here, not on a Listing — see PROGRESS.md for why.
 9. `0009_add_combined_import_type.sql` — adds `style_ean` to the `import_type` enum, used by the
    new "Style + Image + EAN" Import tab. Run and commit on its own, same as step 6.
+10. `0010_add_costing_module.sql` — adds the `Costing` module. Run and commit on its own, same as
+    step 6, before running 0011.
+11. `0011_add_costing_tables.sql` — adds the `style_costing_items` table, `styles.overhead_pct`
+    column, and seeds `Costing` permissions (edit for Founder/Admin only by default).
 
 ## 3. Wire up the real Supabase URL/anon key in the frontend
 

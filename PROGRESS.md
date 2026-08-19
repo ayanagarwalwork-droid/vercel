@@ -79,6 +79,35 @@ Styles import path), `syncSkusForStyle()` ensures every color×size SKU exists, 
 (if present and valid) is assigned to that specific SKU. `updateExisting` checkbox works the same
 as the Styles tab.
 
+## Costing dashboard
+
+New standalone "Costing" sidebar page (per user's explicit choice — not a tab inside Style
+Detail). Bill-of-materials cost breakdown per style, modeled directly on the team's existing
+per-style Excel costing sheets: item x consumption x rate = amount, rolled up to SKU Cost, plus a
+per-style editable Overhead % (defaults 15%), to Total Cost.
+
+- New table `style_costing_items` (migration `0011_add_costing_tables.sql`) — one row per line
+  item per style. New `styles.overhead_pct` column (default 15), also added in 0011.
+- New module `Costing` (migration `0010_add_costing_module.sql` — must run and commit alone
+  first, same enum restriction as 0006/0009). Default permissions: none for everyone except
+  Founder/Admin (edit) — conservative default, same pattern as AI Agent.
+- Backend: folded into `api/styles/handler.js` as a `costing` sub-route (`GET`/`POST
+  /api/styles/costing`) rather than a new serverless function — the app was already at 11/12 of
+  Vercel Hobby's function cap.
+- Frontend: overview table (image, code, name, category, SKU Cost, Overhead, Total Cost) plus an
+  edit modal with an editable item grid. Default item list (Fabric, Cups, swimwear tap, Buckle,
+  Cutting, Stiching, Finish/Pack, Tag, Photoshoot, Thread, Pattern) is shown as a **starting
+  point** for styles with no costing yet — freely editable/addable/removable per style, not a
+  fixed schema (per explicit instruction: "many things are fixed only some additions will be
+  there... use this template as of now").
+
+**IMPORTANT — open question, ask before considering this done:** whether the computed Total Cost
+should feed into/replace the existing `styles.cost_price` field (used by Reports' "Costing
+Pending" tab, Dashboard health stats, etc.) or stay a separate, independent number. The user
+explicitly said "will tell later — remember it for now that you have to ask it later." **Ask
+about this the next time Costing comes up**, don't just decide it. Right now `cost_price` and the
+new costing breakdown are completely independent — Total Cost does not touch `cost_price`.
+
 ## AI Agent tools updated to match
 
 `api/agent/chat.js`'s `search_listings` tool no longer exposes `ean_status` (that's a SKU concern
