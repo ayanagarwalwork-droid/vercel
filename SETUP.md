@@ -41,6 +41,10 @@ In the Supabase dashboard, open **SQL Editor**, paste and run each file from
     step 6, before running 0011.
 11. `0011_add_costing_tables.sql` — adds the `style_costing_items` table, `styles.overhead_pct`
     column, and seeds `Costing` permissions (edit for Founder/Admin only by default).
+12. `0012_rename_ai_agent_to_stitch.sql` — renames the `AI Agent` module to `Stitch`.
+13. `0013_add_costing_approval.sql` — adds `styles.costing_status` (`draft`/`approved`) for the
+    Founder-only costing approval workflow. Plain check constraint, not an enum — no ordering
+    restriction with other migrations.
 
 ## 3. Wire up the real Supabase URL/anon key in the frontend
 

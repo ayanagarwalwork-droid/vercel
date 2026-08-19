@@ -6,8 +6,9 @@
 // GET    /api/styles              — full list. Requires view on Styles.
 // POST   /api/styles              — create via the SKU Engine RPC. Requires edit.
 // POST   /api/styles/upload-image — mint a signed Storage upload URL. Requires edit.
-// GET    /api/styles/costing      — every style's cost-breakdown line items, flat. Requires view on Costing.
-// POST   /api/styles/costing      — replace one style's line items + its overhead %. Requires edit on Costing.
+// GET    /api/styles/costing         — every style's cost-breakdown line items, flat. Requires view on Costing.
+// POST   /api/styles/costing         — replace one style's line items + its overhead %; always sets draft status. Requires edit on Costing.
+// POST   /api/styles/costing-approve — mark a style's costing approved/live. Founder only, regardless of Costing permission.
 // GET    /api/styles/:code        — one style. Requires view.
 // PATCH  /api/styles/:code        — edit name/status/hsn/mrp/cost/description/images/sizes. Requires edit.
 // DELETE /api/styles/:code        — requires edit.
@@ -125,15 +126,17 @@ module.exports = withErrorHandling(async (req, res) => {
         if (insErr) throw new HttpError(500, insErr.message);
       }
 
-      if (overhead_pct !== undefined) {
-        const { error: ohErr } = await supabaseAdmin
-          .from('styles').update({ overhead_pct: overhead_pct || 0, updated_at: new Date().toISOString() }).eq('code', style_code);
-        if (ohErr) throw new HttpError(500, ohErr.message);
-      }
+      // Any save — Founder included — reverts approval status to draft.
+      // Approval is a deliberate, separate action (see costing-approve
+      // below), never implied by editing.
+      const styleUpdate = { costing_status: 'draft', updated_at: new Date().toISOString() };
+      if (overhead_pct !== undefined) styleUpdate.overhead_pct = overhead_pct || 0;
+      const { error: ohErr } = await supabaseAdmin.from('styles').update(styleUpdate).eq('code', style_code);
+      if (ohErr) throw new HttpError(500, ohErr.message);
 
       await writeAudit({
         profile: actor, action: 'update', entity: 'Costing',
-        detail: `Updated costing for style ${style_code}`,
+        detail: `Updated costing for style ${style_code}${actor.role !== 'Founder' ? ' (pending Founder approval)' : ''}`,
       });
 
       const { data: refreshed, error: refErr } = await supabaseAdmin
@@ -143,6 +146,33 @@ module.exports = withErrorHandling(async (req, res) => {
     }
 
     throw new HttpError(405, 'Method not allowed.');
+  }
+
+  // POST /api/styles/costing-approve — Founder-only. Marks a style's
+  // costing as approved/live. Hardcoded to the Founder role rather than the
+  // Costing edit permission, same pattern as Founder's permissions being
+  // immutable elsewhere — this is a sign-off, not a data-edit right, so it
+  // isn't something Roles & Permissions should be able to delegate away.
+  if (params.length === 1 && params[0] === 'costing-approve') {
+    if (req.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
+    const { profile: actor } = await requireModulePermission(req, 'Costing', 'view');
+    if (actor.role !== 'Founder') throw new HttpError(403, 'Only the Founder can approve costing.');
+
+    const { style_code } = req.body || {};
+    if (!style_code) throw new HttpError(400, 'style_code is required.');
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('styles').update({ costing_status: 'approved', updated_at: new Date().toISOString() })
+      .eq('code', style_code).select('code, costing_status').maybeSingle();
+    if (error) throw new HttpError(500, error.message);
+    if (!updated) throw new HttpError(404, `Style not found: ${style_code}`);
+
+    await writeAudit({
+      profile: actor, action: 'update', entity: 'Costing',
+      detail: `Approved costing for style ${style_code}`,
+    });
+
+    return res.status(200).json({ data: updated });
   }
 
   // GET/PATCH/DELETE /api/styles/:code

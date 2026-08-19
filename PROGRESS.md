@@ -108,6 +108,18 @@ explicitly said "will tell later — remember it for now that you have to ask it
 about this the next time Costing comes up**, don't just decide it. Right now `cost_price` and the
 new costing breakdown are completely independent — Total Cost does not touch `cost_price`.
 
+**Founder-only approval workflow** (migration `0013_add_costing_approval.sql`, adds
+`styles.costing_status` text `'draft'|'approved'`, no enum — plain check constraint, no
+transaction-isolation restriction to worry about): anyone with edit access to Costing (Founder,
+Admin) can save the item grid and overhead %, but every save — Founder's own included — sets
+`costing_status = 'draft'`. Only a Founder can flip it to `'approved'`, via a separate
+`POST /api/styles/costing-approve` endpoint that checks `actor.role === 'Founder'` directly
+(hardcoded, like Founder's permissions being immutable elsewhere) rather than going through the
+Costing module's view/edit permission levels — approval is a sign-off, not a data-edit right, so
+it's deliberately not something Roles & Permissions can delegate to another role. The "Approve &
+Go Live" button in the costing modal only renders for `me.role === 'Founder'`, and only once
+items exist and it isn't already approved.
+
 ## Stitch (the only AI chat feature now — AI Copilot was removed; renamed from "AI Agent")
 
 Renamed via migration `0012_rename_ai_agent_to_stitch.sql` (`alter type app_module rename value

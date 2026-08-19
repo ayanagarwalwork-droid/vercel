@@ -1675,7 +1675,7 @@
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th></th><th>Style Code</th><th>Name</th><th>Category</th><th>SKU Cost</th><th>Overhead</th><th>Total Cost</th><th></th>
+              <th></th><th>Style Code</th><th>Name</th><th>Category</th><th>SKU Cost</th><th>Overhead</th><th>Total Cost</th><th>Status</th><th></th>
             </tr></thead>
             <tbody id="costingTbody"></tbody>
           </table>
@@ -2373,7 +2373,10 @@
     <div class="modal-head">
       <div>
         <div class="modal-title" id="costTitle">—</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--font-ui);letter-spacing:0.05em" id="costCode">—</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--font-ui);letter-spacing:0.05em">
+          <span id="costCode">—</span>
+          <span id="costStatusBadge" style="margin-left:8px"></span>
+        </div>
       </div>
       <button class="modal-close" onclick="closeCosting()">✕</button>
     </div>
@@ -2398,6 +2401,7 @@
     </div>
     <div class="modal-error" id="costError"></div>
     <div class="modal-foot">
+      <button class="btn btn-outline" id="costApproveBtn" style="display:none;margin-right:auto;color:var(--success);border-color:var(--success)" onclick="approveCosting()">✓ Approve &amp; Go Live</button>
       <button class="btn btn-outline" onclick="closeCosting()">Cancel</button>
       <button class="btn btn-dark" onclick="saveCosting()">Save Costing</button>
     </div>
@@ -2878,6 +2882,7 @@ function mapStyleFromApi(s) {
     colors: s.colors || [], sizes: s.sizes || [], skus: s.sku_count,
     mrp: s.mrp, costPrice: s.cost_price, hsn: s.hsn_code, description: s.description,
     images: s.images || [], added: s.added_at, overheadPct: s.overhead_pct,
+    costingStatus: s.costing_status || 'draft',
   };
 }
 function mapListingFromApi(l) {
@@ -4282,6 +4287,7 @@ function renderCosting() {
       <td>${t.hasItems ? '₹' + t.skuCost.toFixed(2) : '—'}</td>
       <td>${t.hasItems ? (s.overheadPct ?? 0) + '%' : '—'}</td>
       <td style="font-weight:600">${t.hasItems ? '₹' + t.totalCost.toFixed(2) : '—'}</td>
+      <td>${t.hasItems ? (s.costingStatus === 'approved' ? '<span class="ean-status ean-assigned">Approved</span>' : '<span class="ean-status ean-unassigned">Draft</span>') : '—'}</td>
       <td><button class="tbl-btn" onclick="openCosting('${s.code}')">${t.hasItems ? 'Edit' : 'Add Costing'}</button></td>
     </tr>`;
   }).join('');
@@ -4302,12 +4308,21 @@ function openCosting(code) {
   document.getElementById('costOverheadPct').value = s.overheadPct ?? 15;
   document.getElementById('costError').textContent = '';
 
-  let items = COSTING_ITEMS.filter(c => c.styleCode === code).map(c => ({ item: c.item, consumption: c.consumption, rate: c.rate }));
-  if (!items.length) items = DEFAULT_COSTING_ITEMS.map(name => ({ item: name, consumption: '', rate: '' }));
+  const items = COSTING_ITEMS.filter(c => c.styleCode === code).map(c => ({ item: c.item, consumption: c.consumption, rate: c.rate }));
+  const hasItems = items.length > 0;
+  const rows = hasItems ? items : DEFAULT_COSTING_ITEMS.map(name => ({ item: name, consumption: '', rate: '' }));
 
   document.getElementById('costItemsBody').innerHTML = '';
-  items.forEach(it => addCostingRow(it.item, it.consumption, it.rate));
+  rows.forEach(it => addCostingRow(it.item, it.consumption, it.rate));
   recalcCosting();
+
+  const badge = document.getElementById('costStatusBadge');
+  badge.innerHTML = hasItems
+    ? (s.costingStatus === 'approved' ? '<span class="ean-status ean-assigned">Approved</span>' : '<span class="ean-status ean-unassigned">Draft — pending Founder approval</span>')
+    : '';
+
+  const approveBtn = document.getElementById('costApproveBtn');
+  approveBtn.style.display = (hasItems && me?.role === 'Founder' && s.costingStatus !== 'approved') ? '' : 'none';
 
   document.getElementById('costingModal').classList.add('open');
 }
@@ -4315,6 +4330,23 @@ function openCosting(code) {
 function closeCosting() {
   document.getElementById('costingModal').classList.remove('open');
   costingCurrentCode = null;
+}
+
+// Founder-only — server enforces this regardless of what the client sends.
+async function approveCosting() {
+  const code = costingCurrentCode;
+  if (!code) return;
+  try {
+    await api.post('/api/styles/costing-approve', { style_code: code });
+  } catch (e) {
+    document.getElementById('costError').textContent = e.message || 'Failed to approve costing.';
+    return;
+  }
+  const s = STYLES_DATA.find(x => x.code === code);
+  if (s) s.costingStatus = 'approved';
+  closeCosting();
+  renderCosting();
+  toast('Costing approved for ' + code, 'success');
 }
 
 function addCostingRow(item, consumption, rate) {
@@ -4363,14 +4395,14 @@ async function saveCosting() {
   }
 
   const s = STYLES_DATA.find(x => x.code === code);
-  if (s) s.overheadPct = overhead_pct;
+  if (s) { s.overheadPct = overhead_pct; s.costingStatus = 'draft'; }
   const remaining = COSTING_ITEMS.filter(c => c.styleCode !== code);
   COSTING_ITEMS.length = 0;
   COSTING_ITEMS.push(...remaining, ...(res.data || []).map(mapCostingItemFromApi));
 
   closeCosting();
   renderCosting();
-  toast('Costing saved for ' + code, 'success');
+  toast('Costing saved for ' + code + (me?.role !== 'Founder' ? ' — pending Founder approval' : ''), 'success');
 }
 
 // ── GLOBAL SEARCH ─────────────────────────────────────────────────────────
