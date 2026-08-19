@@ -34,7 +34,7 @@ async function buildCatalogContext() {
     supabaseAdmin.from('styles').select('*', { count: 'exact', head: true }).eq('status', 'active'),
     supabaseAdmin.from('listings').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'live'),
-    supabaseAdmin.from('listings').select('*', { count: 'exact', head: true }).eq('ean_status', 'unassigned'),
+    supabaseAdmin.from('skus').select('*', { count: 'exact', head: true }).eq('ean_status', 'unassigned'),
     supabaseAdmin.from('styles').select('category, status, images'),
     supabaseAdmin.from('listings').select('marketplace, status'),
     supabaseAdmin.from('import_history').select('type, row_count, date').order('created_at', { ascending: false }).limit(5),

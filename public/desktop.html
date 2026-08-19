@@ -1216,6 +1216,10 @@
           <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20 10 10 0 010-20z"/><path d="M12 8v4l3 3"/></svg>
           AI Copilot
         </a>
+        <a class="nav-item" onclick="showPage('agent')">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+          AI Agent
+        </a>
         <a class="nav-item" onclick="showPage('import')">
           <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Import
@@ -1623,15 +1627,11 @@
             <option value="unassigned">Unassigned</option>
             <option value="printed">Printed</option>
           </select>
-          <select class="filter-select" id="eanMktFilter" onchange="renderEAN()">
-            <option value="">All Marketplaces</option>
-            <option>Myntra</option><option>Nykaa</option><option>Amazon</option><option>Ajio</option><option>Flipkart</option>
-          </select>
         </div>
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>AOBA SKU</th><th>Style</th><th>Category</th><th>Marketplace</th><th>EAN</th><th>Barcode Status</th><th></th>
+              <th>AOBA SKU</th><th>Style</th><th>Category</th><th>EAN</th><th>Barcode Status</th><th></th>
             </tr></thead>
             <tbody id="eanTbody"></tbody>
           </table>
@@ -1690,6 +1690,8 @@
             <option value="login">Login</option>
             <option value="export">Export</option>
             <option value="permission">Permission Change</option>
+            <option value="import">Import</option>
+            <option value="assign">Assign</option>
           </select>
           <select class="filter-select" id="auditActorFilter" onchange="renderAudit()">
             <option value="">All Team Members</option>
@@ -1742,6 +1744,46 @@
                 <textarea id="chatInput" placeholder="Ask anything about your catalog…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage()}"></textarea>
               </div>
               <button class="chat-send-btn" onclick="sendChatMessage()">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── AI AGENT ── -->
+      <div id="page-agent" class="page" style="padding-bottom:0">
+        <div class="page-header">
+          <div class="page-header-row">
+            <div>
+              <div class="page-label">AI Agent</div>
+              <div class="page-title">Queries and acts on the live catalog directly.</div>
+            </div>
+          </div>
+        </div>
+        <div class="copilot-layout">
+          <div class="copilot-sidebar">
+            <div class="copilot-sidebar-label">Quick Actions</div>
+            <button class="qa-btn" onclick="sendAgentQuickAction('How many listings have an unassigned EAN right now?')"><span class="qa-btn-icon">🔎</span><span class="qa-btn-text">Check unassigned EANs</span></button>
+            <button class="qa-btn" onclick="sendAgentQuickAction('List styles with zero images')"><span class="qa-btn-icon">🖼</span><span class="qa-btn-text">Find styles missing images</span></button>
+            <button class="qa-btn" onclick="sendAgentQuickAction('Show the 10 most recent audit log entries')"><span class="qa-btn-icon">📜</span><span class="qa-btn-text">Recent audit activity</span></button>
+            <button class="qa-btn" onclick="sendAgentQuickAction('Show me the last 5 import runs')"><span class="qa-btn-icon">📥</span><span class="qa-btn-text">Recent imports</span></button>
+          </div>
+          <div class="copilot-chat">
+            <div class="chat-messages" id="agentChatMessages">
+              <div class="chat-msg">
+                <div class="chat-av ai">A</div>
+                <div class="chat-bubble ai">I'm the AI Agent — I query the live database directly instead of working off a summary, and (if your role has edit access here) I can assign EANs, and change listing or style status on request.<br><br>What do you need?</div>
+              </div>
+            </div>
+            <div class="chat-suggestions" id="agentChatSuggestions">
+              <div class="chat-suggestion-chip" onclick="sendAgentQuickAction('What listings does SKU AILW-1A/M have?')">What listings does AILW-1A/M have?</div>
+              <div class="chat-suggestion-chip" onclick="sendAgentQuickAction('Assign EAN 8901234567890 to SKU AILW-1A/M')">Assign an EAN to a SKU</div>
+              <div class="chat-suggestion-chip" onclick="sendAgentQuickAction('Mark style AILW-1 inactive')">Mark a style inactive</div>
+            </div>
+            <div class="chat-input-bar">
+              <div class="chat-input-wrap">
+                <textarea id="agentChatInput" placeholder="Ask the agent, or ask it to do something…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAgentChatMessage()}"></textarea>
+              </div>
+              <button class="chat-send-btn" onclick="sendAgentChatMessage()">Send</button>
             </div>
           </div>
         </div>
@@ -2392,11 +2434,11 @@ const SAMPLE_LISTINGS = [];
 
 const ROLES = [
   { name: 'Founder',          emoji: '👑', color: '#8B6914', bg: 'rgba(139,105,20,0.1)',
-    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','Import','User Management','Roles & Permissions','Settings','Guide'],
-    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','Import','User Management','Roles & Permissions','Settings','Guide'] },
+    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'],
+    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'] },
   { name: 'Admin',            emoji: '🛡', color: '#5A3E8A', bg: 'rgba(90,62,138,0.1)',
-    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','Import','User Management','Roles & Permissions','Settings','Guide'],
-    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','Import','User Management','Roles & Permissions','Settings'] },
+    perms:     ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings','Guide'],
+    editPerms: ['Dashboard','Styles','Listings','EAN / Barcode','Reports','Search','Audit Trail','AI Copilot','AI Agent','Import','User Management','Roles & Permissions','Settings'] },
   { name: 'Merchandising',    emoji: '🛍', color: '#2D6A4F', bg: 'rgba(45,106,79,0.1)',
     perms:     ['Dashboard','Styles','Listings','Reports','Search','AI Copilot'],
     editPerms: ['Styles','Listings'] },
@@ -2503,6 +2545,9 @@ const STYLES_DATA = [];
 
 const LISTINGS_DATA = [];
 
+// One row per style+color+size — EAN lives here, not on a Listing.
+const SKUS_DATA = [];
+
 // active filter state for category chips
 let stylesCatActive = '';
 let listingsCatActive = '';
@@ -2510,7 +2555,7 @@ let listingsCatActive = '';
 // Grouped sections — mirrors real sidebar order
 const PERM_SECTIONS = [
   { label: 'Core',  modules: ['Dashboard','Styles','Listings','EAN / Barcode','Reports'] },
-  { label: 'Tools', modules: ['Search','Audit Trail','AI Copilot','Import'] },
+  { label: 'Tools', modules: ['Search','Audit Trail','AI Copilot','AI Agent','Import'] },
   { label: 'Admin', modules: ['User Management','Roles & Permissions','Settings','Guide'] },
 ];
 const ALL_PERMS = PERM_SECTIONS.flatMap(s => s.modules);
@@ -2725,12 +2770,13 @@ async function completeLogin() {
 // STYLES_DATA/LISTINGS_DATA/AUDIT_LOG/IMPORT_HISTORY stay empty for now —
 // those pages are wired up in later phases.
 async function loadAllData() {
-  const [usersRes, invitesRes, permsRes, stylesRes, listingsRes, auditRes, importRes] = await Promise.all([
+  const [usersRes, invitesRes, permsRes, stylesRes, listingsRes, skusRes, auditRes, importRes] = await Promise.all([
     api.get('/api/users'),
     api.get('/api/invites'),
     api.get('/api/roles/permissions'),
     api.get('/api/styles'),
     api.get('/api/listings'),
+    api.get('/api/ean'),
     api.get('/api/audit'),
     api.get('/api/import/history'),
   ]);
@@ -2752,6 +2798,9 @@ async function loadAllData() {
 
   LISTINGS_DATA.length = 0;
   LISTINGS_DATA.push(...(listingsRes.data || []).map(mapListingFromApi));
+
+  SKUS_DATA.length = 0;
+  SKUS_DATA.push(...(skusRes.data || []).map(mapSkuFromApi));
 
   AUDIT_LOG.length = 0;
   AUDIT_LOG.push(...(auditRes.data || []).map(mapAuditFromApi));
@@ -2802,7 +2851,13 @@ function mapListingFromApi(l) {
     category: (l.style_code || '').replace(/-\d.*$/, ''),
     marketplace: l.marketplace, marketplaceSku: l.marketplace_sku, marketplaceStyleId: '',
     type: l.type, status: l.status, mrp: l.mrp, listingUrl: l.listing_url,
-    launchDate: l.launch_date, ean: l.ean, eanStatus: l.ean_status,
+    launchDate: l.launch_date,
+  };
+}
+function mapSkuFromApi(s) {
+  return {
+    sku: s.sku, styleCode: s.style_code, style: s.style_name, category: s.category,
+    color: s.color, size: s.size, ean: s.ean, eanStatus: s.ean_status,
   };
 }
 
@@ -3285,7 +3340,7 @@ function renderDashboard() {
   // Catalog health — computed from live data
   const thisMonth = new Date().toISOString().slice(0,7);
   const missingImages   = STYLES_DATA.filter(s => !s.images || !s.images.length).length;
-  const missingEANs     = LISTINGS_DATA.filter(l => !l.ean).length;
+  const missingEANs     = SKUS_DATA.filter(s => !s.ean).length;
   const pendingCosting  = STYLES_DATA.filter(s => !s.mrp || !s.costPrice).length;
   const readyForLaunch  = STYLES_DATA.filter(s => s.status==='active' && s.images && s.images.length && s.mrp).length;
   const launchedMonth   = LISTINGS_DATA.filter(l => l.status==='live' && l.launchDate && l.launchDate.startsWith(thisMonth)).length;
@@ -3466,12 +3521,12 @@ function renderReports() {
   if (!tabsEl || !contentEl) return;
 
   const counts = {
-    'missing-ean':     LISTINGS_DATA.filter(l=>!l.ean).length,
+    'missing-ean':     SKUS_DATA.filter(s=>!s.ean).length,
     'missing-images':  STYLES_DATA.filter(s=>!s.images||!s.images.length).length,
     'inactive-styles': STYLES_DATA.filter(s=>s.status==='inactive').length,
     'launches':        LISTINGS_DATA.filter(l=>l.status==='live'&&l.launchDate).length,
     'costing':         STYLES_DATA.filter(s=>!s.mrp||!s.costPrice).length,
-    'barcode':         LISTINGS_DATA.filter(l=>!l.ean).length,
+    'barcode':         SKUS_DATA.filter(s=>s.eanStatus==='assigned').length,
     'relisting':       LISTINGS_DATA.filter(l=>l.type==='relisting').length,
   };
 
@@ -3492,18 +3547,17 @@ function renderReportContent(tab, el) {
   const tbl  = (head, rows) => `<div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
 
   if (tab === 'missing-ean') {
-    const noEan = LISTINGS_DATA.filter(l => !l.ean);
-    const rows = noEan.map(l => {
-      const cm = catMeta(l.category);
-      return `<tr><td><span class="aoba-sku-tag">${l.sku}</span></td><td>${l.style||'—'}</td>
-        <td><span class="cat-badge" style="background:${cm.bg};color:${cm.color}">${l.category}</span></td>
-        <td><span class="mkt-tag">${l.marketplace}</span></td>
+    const noEan = SKUS_DATA.filter(s => !s.ean);
+    const rows = noEan.map(s => {
+      const cm = catMeta(s.category);
+      return `<tr><td><span class="aoba-sku-tag">${s.sku}</span></td><td>${s.style||'—'}</td>
+        <td><span class="cat-badge" style="background:${cm.bg};color:${cm.color}">${s.category}</span></td>
         <td><span class="lst-tag lst-pending">Unassigned</span></td>
         <td><button class="tbl-btn" onclick="showPage('ean')">Assign EAN</button></td></tr>`;
     }).join('');
     const empty = noEan.length ? '' : `<div style="padding:40px;text-align:center;color:var(--success);font-family:var(--font-display);font-size:24px">All EANs assigned ✓</div>`;
     el.innerHTML = info('SKUs without EAN barcodes. Required for Myntra, Amazon and Flipkart.') +
-      (rows ? tbl('<th>AOBA SKU</th><th>Style</th><th>Category</th><th>Marketplace</th><th>EAN Status</th><th></th>', rows) : empty);
+      (rows ? tbl('<th>AOBA SKU</th><th>Style</th><th>Category</th><th>EAN Status</th><th></th>', rows) : empty);
     return;
   }
   if (tab === 'missing-images') {
@@ -3585,14 +3639,16 @@ function renderReportContent(tab, el) {
     return;
   }
   if (tab === 'barcode') {
-    const rows = LISTINGS_DATA.filter(l=>l.status==='pending').slice(0,5).map(l =>
-      `<tr><td><span class="aoba-sku-tag">${l.sku}</span></td><td>${l.style}</td>
-        <td><span class="mkt-tag">${l.marketplace}</span></td>
+    const pending = SKUS_DATA.filter(s => s.eanStatus === 'assigned');
+    const rows = pending.map(s =>
+      `<tr><td><span class="aoba-sku-tag">${s.sku}</span></td><td>${s.style||'—'}</td>
+        <td><span class="ean-badge">${s.ean}</span></td>
         <td><span class="lst-tag lst-pending">Pending Print</span></td>
         <td><button class="tbl-btn" onclick="toast('Sent to print queue.','success')">Print</button></td></tr>`
     ).join('');
+    const empty = pending.length ? '' : `<div style="padding:40px;text-align:center;color:var(--success);font-family:var(--font-display);font-size:24px">Nothing pending print ✓</div>`;
     el.innerHTML = info('EANs assigned but barcodes not yet printed.') +
-      tbl('<th>AOBA SKU</th><th>Style</th><th>Marketplace</th><th>Status</th><th></th>', rows);
+      (rows ? tbl('<th>AOBA SKU</th><th>Style</th><th>EAN</th><th>Status</th><th></th>', rows) : empty);
     return;
   }
   if (tab === 'relisting') {
@@ -4105,28 +4161,18 @@ async function saveNewStyle() {
   toast('Style created: ' + res.data.code, 'success');
 }
 
-// ── EAN DATA — computed live from LISTINGS_DATA ───────────────────────────
-function getEanData() {
-  return LISTINGS_DATA.map((l, i) => {
-    if (l.ean) return { ...l, eanStatus: l.eanStatus || 'assigned' };
-    return { ...l, ean: null, eanStatus: 'unassigned' };
-  });
-}
-
+// ── EAN — one row per SKU (style+color+size), independent of Listings ─────
 function renderEAN() {
-  const EAN_DATA = getEanData();
   const q  = document.getElementById('eanSearch').value.toLowerCase();
   const sf = document.getElementById('eanStatusFilter').value;
-  const mf = document.getElementById('eanMktFilter').value;
-  const list = EAN_DATA.filter(e =>
+  const list = SKUS_DATA.filter(e =>
     (!q  || e.sku.toLowerCase().includes(q) || (e.style||'').toLowerCase().includes(q)) &&
-    (!sf || e.eanStatus === sf) &&
-    (!mf || e.marketplace === mf)
+    (!sf || e.eanStatus === sf)
   );
-  const total      = EAN_DATA.length;
-  const assigned   = EAN_DATA.filter(e => e.eanStatus === 'assigned' || e.eanStatus === 'printed').length;
-  const printed    = EAN_DATA.filter(e => e.eanStatus === 'printed').length;
-  const unassigned = EAN_DATA.filter(e => e.eanStatus === 'unassigned').length;
+  const total      = SKUS_DATA.length;
+  const assigned   = SKUS_DATA.filter(e => e.eanStatus === 'assigned' || e.eanStatus === 'printed').length;
+  const printed    = SKUS_DATA.filter(e => e.eanStatus === 'printed').length;
+  const unassigned = SKUS_DATA.filter(e => e.eanStatus === 'unassigned').length;
   document.getElementById('eanTotalHdr').textContent    = total;
   document.getElementById('eanStatTotal').textContent   = total;
   document.getElementById('eanStatAssigned').textContent   = assigned;
@@ -4145,13 +4191,11 @@ function renderEAN() {
       <td><span class="aoba-sku-tag">${e.sku}</span></td>
       <td style="font-weight:500">${e.style||e.styleCode||'—'}</td>
       <td><span class="cat-badge" style="background:${cm.bg};color:${cm.color}">${e.category||'—'}</span></td>
-      <td><span class="mkt-tag">${e.marketplace}</span></td>
       <td>${e.ean ? `<span class="ean-badge">${e.ean}</span>` : `<span class="ean-badge unassigned">— Unassigned</span>`}</td>
       <td><span class="ean-status ${stMap[e.eanStatus]}">${stLabel[e.eanStatus]}</span></td>
       <td><div class="row-actions">
-        ${e.eanStatus === 'unassigned' ? `<button class="tbl-btn" onclick="toast('EAN assigned successfully.','success')">Assign EAN</button>` : ''}
-        ${e.eanStatus === 'assigned'   ? `<button class="tbl-btn" onclick="toast('Sent to print queue.','success')">Print</button>` : ''}
-        ${e.eanStatus === 'printed'    ? `<button class="tbl-btn" onclick="toast('Barcode reprinted.')">Reprint</button>` : ''}
+        ${e.eanStatus === 'assigned' ? `<button class="tbl-btn" onclick="toast('Sent to print queue.','success')">Print</button>` : ''}
+        ${e.eanStatus === 'printed'  ? `<button class="tbl-btn" onclick="toast('Barcode reprinted.')">Reprint</button>` : ''}
       </div></td>
     </tr>`;
   }).join('');
@@ -4266,8 +4310,8 @@ function renderAudit() {
     (!pf || e.actor === pf)
   );
   document.getElementById('auditTotalHdr').textContent = list.length;
-  const actionCls = { create:'action-create', update:'action-update', delete:'action-delete', login:'action-login', export:'action-export', permission:'action-permission' };
-  const actionLabel = { create:'Create', update:'Update', delete:'Delete', login:'Login', export:'Export', permission:'Permission' };
+  const actionCls = { create:'action-create', update:'action-update', delete:'action-delete', login:'action-login', export:'action-export', permission:'action-permission', import:'action-update', assign:'action-create' };
+  const actionLabel = { create:'Create', update:'Update', delete:'Delete', login:'Login', export:'Export', permission:'Permission', import:'Import', assign:'Assign' };
   document.getElementById('auditTbody').innerHTML = list.map(e => {
     const rm = roleMeta(e.role);
     return `<tr>
@@ -4309,6 +4353,40 @@ async function sendChatMessage() {
     const res = await api.post('/api/copilot/chat', { message: text, history: _chatHistory });
     response = res.data.reply;
     _chatHistory.push({ role: 'user', content: text }, { role: 'assistant', content: response });
+  } catch (e) {
+    response = 'Sorry, I ran into a problem: ' + (e.message || 'unknown error.');
+  }
+  const el = document.getElementById(typingId);
+  if (el) el.querySelector('.chat-bubble').innerHTML = response;
+  messages.scrollTop = messages.scrollHeight;
+}
+
+// ── AI AGENT ──────────────────────────────────────────────────────────────
+let _agentChatHistory = []; // separate from _chatHistory — different endpoint, different conversation
+
+function sendAgentQuickAction(text) {
+  document.getElementById('agentChatInput').value = text;
+  sendAgentChatMessage();
+}
+
+async function sendAgentChatMessage() {
+  const input = document.getElementById('agentChatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  const messages = document.getElementById('agentChatMessages');
+  messages.innerHTML += `<div class="chat-msg user"><div class="chat-av usr">${initials(me ? me.name : 'User')}</div><div class="chat-bubble usr">${text}</div></div>`;
+
+  const typingId = 'agent-typing-' + Date.now();
+  messages.innerHTML += `<div class="chat-msg" id="${typingId}"><div class="chat-av ai">A</div><div class="chat-bubble ai"><div class="chat-typing"><span></span><span></span><span></span></div></div></div>`;
+  messages.scrollTop = messages.scrollHeight;
+
+  let response;
+  try {
+    const res = await api.post('/api/agent/chat', { message: text, history: _agentChatHistory });
+    response = res.data.reply;
+    _agentChatHistory.push({ role: 'user', content: text }, { role: 'assistant', content: response });
   } catch (e) {
     response = 'Sorry, I ran into a problem: ' + (e.message || 'unknown error.');
   }
@@ -4415,7 +4493,7 @@ function exportCurrentData() {
     filename = 'listings-export.csv';
   } else {
     headers = ['AOBA SKU','EAN (13 digits)','Status'];
-    rows = LISTINGS_DATA.filter(l => l.ean).map(l => [l.sku, l.ean, l.eanStatus||'assigned']);
+    rows = SKUS_DATA.filter(s => s.ean).map(s => [s.sku, s.ean, s.eanStatus||'assigned']);
     filename = 'ean-export.csv';
   }
   if (!rows.length) { toast('No data to export yet.', 'error'); return; }
@@ -4471,10 +4549,10 @@ function exportListings() {
 }
 
 function exportEANs() {
-  const withEan = LISTINGS_DATA.filter(l => l.ean);
+  const withEan = SKUS_DATA.filter(s => s.ean);
   if (!withEan.length) { toast('No EAN data to export yet.', 'error'); return; }
   const headers = ['AOBA SKU','EAN (13 digits)','Status'];
-  const rows = withEan.map(l => [l.sku, l.ean, l.eanStatus||'assigned']);
+  const rows = withEan.map(s => [s.sku, s.ean, s.eanStatus||'assigned']);
   const csv = [headers, ...rows].map(r => r.map(v => `"${(v||'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -4598,17 +4676,21 @@ async function confirmImport() {
   // Re-fetch rather than hand-merge rows client-side — the server may have
   // skipped/deduped/updated rows in ways that are simplest to just reflect
   // exactly as stored, and this keeps confirmImport() from needing its own
-  // mapping logic.
-  const [stylesRes, listingsRes] = await Promise.all([api.get('/api/styles'), api.get('/api/listings')]);
+  // mapping logic. Styles imports create new SKU rows server-side and EAN
+  // imports update existing ones, so SKUS_DATA needs a re-fetch either way.
+  const [stylesRes, listingsRes, skusRes] = await Promise.all([
+    api.get('/api/styles'), api.get('/api/listings'), api.get('/api/ean'),
+  ]);
   STYLES_DATA.length = 0; STYLES_DATA.push(...(stylesRes.data || []).map(mapStyleFromApi));
   LISTINGS_DATA.length = 0; LISTINGS_DATA.push(...(listingsRes.data || []).map(mapListingFromApi));
-  renderStyles(); renderListings(); renderDashboard(); renderEAN();
+  SKUS_DATA.length = 0; SKUS_DATA.push(...(skusRes.data || []).map(mapSkuFromApi));
+  renderStyles(); renderListings(); renderDashboard(); renderEAN(); renderReports();
 
   IMPORT_HISTORY.unshift(mapImportHistoryFromApi(res.data.importHistory));
   renderImportHistory();
   const summary = (created !== undefined && updated !== undefined)
     ? `Created ${created}, updated ${updated}.`
-    : `Imported ${imported} row${imported !== 1 ? 's' : ''} successfully.`;
+    : `Imported ${imported} row${imported !== 1 ? 's' : ''} successfully.${res.data.skipped ? ` (${res.data.skipped} skipped)` : ''}`;
   toast(summary, 'success');
   clearImportPreview();
 }
@@ -4809,18 +4891,19 @@ async function assignSingleEAN() {
     toast(e.message || 'Failed to assign EAN.', 'error');
     return;
   }
-  const entry = LISTINGS_DATA.find(l => l.sku === sku);
-  if (entry) Object.assign(entry, mapListingFromApi(res.data));
+  const entry = SKUS_DATA.find(s => s.sku === sku);
+  if (entry) { entry.ean = res.data.ean; entry.eanStatus = res.data.ean_status; }
   document.getElementById('eanSingleSku').value = '';
   document.getElementById('eanSingleEan').value = '';
   renderEAN();
+  renderDashboard(); renderReports();
   toast('EAN ' + ean + ' assigned to ' + sku, 'success');
 }
 
 function downloadDataKartTemplate() {
-  const skusNeedingEAN = LISTINGS_DATA.filter(l => !l.ean || l.ean === '—');
-  const headers = ['AOBA SKU','Style Code','Category','Marketplace','EAN (leave blank — DataKart will fill)'];
-  const rows = [headers, ...skusNeedingEAN.map(l => [l.sku, l.style, l.category, l.marketplace, ''])];
+  const skusNeedingEAN = SKUS_DATA.filter(s => !s.ean);
+  const headers = ['AOBA SKU','Style Code','Category','EAN (leave blank — DataKart will fill)'];
+  const rows = [headers, ...skusNeedingEAN.map(s => [s.sku, s.styleCode, s.category, ''])];
   const csv  = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);

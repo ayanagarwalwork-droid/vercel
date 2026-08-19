@@ -6,10 +6,11 @@
 // GET  /api/import/history  — most recent import runs. Requires view on Import.
 // POST /api/import/styles   — bulk-create styles from a parsed CSV. Requires edit.
 // POST /api/import/listings — bulk-create listings from a parsed CSV. Requires edit.
-// POST /api/import/ean      — bulk-update listings' EAN from a parsed CSV. Requires edit.
+// POST /api/import/ean      — bulk-update SKUs' EAN from a parsed CSV. Requires edit.
 const { requireModulePermission, withErrorHandling, HttpError } = require('../_lib/auth');
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
 const { writeAudit } = require('../_lib/audit');
+const { syncSkusForStyle } = require('../_lib/skus');
 
 // Google Drive "share" links (drive.google.com/file/d/ID/view or
 // drive.google.com/open?id=ID) render an HTML viewer page, not an image, so
@@ -25,7 +26,7 @@ function normalizeImageUrl(url) {
   return url;
 }
 
-async function writeImportHistory({ type, filename, imported, rawCsv, actor }) {
+async function writeImportHistory({ type, filename, imported, rawCsv, actor, note }) {
   const { data: historyRow, error } = await supabaseAdmin
     .from('import_history')
     .insert({
@@ -37,7 +38,7 @@ async function writeImportHistory({ type, filename, imported, rawCsv, actor }) {
 
   await writeAudit({
     profile: actor, action: 'import', entity: 'Catalog',
-    detail: `Imported ${imported} rows from ${filename || 'import.csv'} (${type})`,
+    detail: `Imported ${imported} rows from ${filename || 'import.csv'} (${type})${note || ''}`,
   });
 
   return historyRow;
@@ -57,8 +58,9 @@ async function importStyles(req, actor) {
   const descIdx = headers.indexOf('Description');
   const imgIdx = [1, 2, 3, 4].map((n) => headers.indexOf(`Image URL ${n}`));
 
-  const { data: existing } = await supabaseAdmin.from('styles').select('code');
+  const { data: existing } = await supabaseAdmin.from('styles').select('code, colors');
   const existingCodes = new Set((existing || []).map((s) => s.code));
+  const existingColors = new Map((existing || []).map((s) => [s.code, s.colors]));
 
   let created = 0;
   let updated = 0;
@@ -93,6 +95,7 @@ async function importStyles(req, actor) {
       patch.updated_at = new Date().toISOString();
       const { error } = await supabaseAdmin.from('styles').update(patch).eq('code', code);
       if (error) throw new HttpError(500, error.message);
+      if (patch.sizes) await syncSkusForStyle(code, existingColors.get(code) || [], patch.sizes);
       updated++;
       continue;
     }
@@ -115,6 +118,7 @@ async function importStyles(req, actor) {
   if (rowsToInsert.length) {
     const { error } = await supabaseAdmin.from('styles').insert(rowsToInsert);
     if (error) throw new HttpError(500, error.message);
+    for (const row of rowsToInsert) await syncSkusForStyle(row.code, row.colors, row.sizes);
   }
 
   const imported = created + updated;
@@ -173,22 +177,27 @@ async function importEan(req, actor) {
   const statIdx = headers.indexOf('Status');
 
   let imported = 0;
+  let skipped = 0;
   for (const row of dataRows) {
     const sku = row[skuIdx];
-    if (!sku) continue;
-    const { data: match } = await supabaseAdmin.from('listings').select('id').eq('sku', sku).limit(1).maybeSingle();
-    if (!match) continue;
+    const ean = row[eanIdx];
+    if (!sku || !/^\d{8}$|^\d{12,14}$/.test(String(ean || ''))) { skipped++; continue; }
 
-    const { error } = await supabaseAdmin
-      .from('listings')
-      .update({ ean: row[eanIdx], ean_status: row[statIdx] || 'assigned', updated_at: new Date().toISOString() })
-      .eq('id', match.id);
+    const { data: updated, error } = await supabaseAdmin
+      .from('skus')
+      .update({ ean, ean_status: row[statIdx] || 'assigned', updated_at: new Date().toISOString() })
+      .eq('sku', sku)
+      .select('sku');
     if (error) throw new HttpError(500, error.message);
+    if (!updated.length) { skipped++; continue; }
     imported++;
   }
 
-  const historyRow = await writeImportHistory({ type: 'ean', filename, imported, rawCsv, actor });
-  return { imported, importHistory: historyRow };
+  const historyRow = await writeImportHistory({
+    type: 'ean', filename, imported, rawCsv, actor,
+    note: skipped ? ` (${skipped} skipped — SKU not found or invalid EAN)` : '',
+  });
+  return { imported, skipped, importHistory: historyRow };
 }
 
 module.exports = withErrorHandling(async (req, res) => {

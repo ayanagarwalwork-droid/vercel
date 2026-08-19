@@ -23,10 +23,70 @@ Needs `.env.local` (copy from `.env.example`) with real Supabase credentials —
 ## Modules (all implemented per README)
 
 Dashboard, Styles, Listings, EAN/Barcode, Reports, Search, Audit Trail, Import,
-User Management, Roles & Permissions, AI Copilot, Settings, Guide.
+User Management, Roles & Permissions, AI Copilot, AI Agent, Settings, Guide.
 
-API routes under `api/`: `_lib`, `audit`, `auth`, `copilot`, `ean`, `import`,
-`invites`, `listings`, `roles`, `styles`, `users`.
+API routes under `api/`: `_lib`, `agent`, `audit`, `auth`, `copilot`, `ean`, `import`,
+`invites`, `listings`, `roles`, `styles`, `users`. That's 11 of Vercel Hobby's 12-function cap —
+one slot of headroom left; consolidate into an existing catch-all handler before adding a 13th.
+
+## EAN is a SKU property, not a Listing property
+
+Originally EAN lived on `listings` (one row per SKU-on-a-marketplace), which meant a SKU needed a
+Listing to exist before it could get an EAN. In practice Listings were never created for most of
+the catalog (54 Styles, 0 Listings, ever) — every EAN assign/import silently had nothing to
+attach to. Root-caused by inspecting the live Supabase data and the Audit Trail (four identical
+"Imported 0 rows from ean-template.csv" entries from 1 Aug), then fixed by decoupling EAN from
+Listings entirely:
+
+- New `skus` table (migration `0008_add_skus_table.sql`) — one row per style+color+size,
+  independent of Listings. Backfilled for all existing styles.
+- `skus` rows are auto-created whenever a style is created (manually or via CSV import) or has
+  its sizes changed — see `api/_lib/skus.js`'s `syncSkusForStyle()`, called from
+  `api/styles/handler.js` and `api/import/handler.js`. Only ever adds rows, never deletes, so a
+  shrunk size list can't silently drop a SKU that already has an EAN.
+- `api/ean/handler.js` (replaces the old `api/ean/assign.js`) now reads/writes `skus`, not
+  `listings`. `GET /api/ean` lists all SKUs (joined with style name/category) for the EAN/Barcode
+  page; `POST /api/ean/assign` is unchanged at the URL level.
+- `api/import/handler.js`'s EAN import now matches by SKU directly against `skus`, validates the
+  EAN format (8/12/13/14 digits) before writing, and reports a `skipped` count for rows that
+  didn't match or had a bad EAN — so a bad import is visibly non-silent now.
+- Frontend: new `SKUS_DATA` array (`public/desktop.html`), fetched via `GET /api/ean` in
+  `loadAllData()`. EAN/Barcode page, Dashboard's "Missing EANs" stat, and Reports' "Missing EAN"/
+  "Barcode Pending" tabs all read from it instead of `LISTINGS_DATA`. The EAN page's Marketplace
+  filter/column was removed since EAN is no longer marketplace-specific.
+- `listings.ean` / `listings.ean_status` columns were deliberately **not** dropped from the DB
+  (still there, just unused going forward) to avoid a destructive migration.
+- Also fixed while in there: Audit Trail showed "UNDEFINED" for every Import/Assign action — its
+  action-label/class maps and filter dropdown only knew about Create/Update/Delete/Login/Export/
+  Permission. Added Import and Assign.
+- **Not yet applied to the live Supabase project** — migration `0008` needs to be run (SQL
+  Editor) before this deploys correctly. Until then the live site is still on the old
+  listings-based EAN code.
+
+## AI Agent tools updated to match
+
+`api/agent/chat.js`'s `search_listings` tool no longer exposes `ean_status` (that's a SKU concern
+now); added a `search_skus` tool and repointed the `assign_ean` write tool at `skus`.
+
+## AI Agent vs AI Copilot
+
+Two separate modules/pages, both Claude-powered, deliberately not merged:
+
+- **AI Copilot** (`api/copilot/chat.js`) — answers questions grounded in a pre-computed stats
+  snapshot of the catalog. Read-only, no tool use, cheap and fast (Haiku).
+- **AI Agent** (`api/agent/chat.js`) — a real tool-using agent (Sonnet). It queries Supabase
+  live via read tools (`search_styles`, `search_listings`, `get_audit_log`,
+  `get_import_history`) and, only for callers with **edit** access to the `AI Agent` module, can
+  invoke a small whitelisted set of write tools (`assign_ean`, `update_listing_status`,
+  `update_style_status`) — each one mirrors an existing manual endpoint's validation and writes
+  the same audit log entry (tagged "via AI Agent"). View-only access to the module still allows
+  chat/read tools, just not the write ones — enforced per-call server-side, not just at the door.
+- New DB migrations `0006_add_ai_agent_module.sql` (adds the `AI Agent` enum value — must be run
+  and committed on its own) and `0007_seed_ai_agent_permissions.sql` (grants edit to
+  Founder/Admin only by default; grant more roles via Roles & Permissions in-app).
+- Not yet run against a live Supabase project or smoke-tested end-to-end — next session should
+  run migrations 0006/0007 and do a real test (ask it to look something up, then ask it to
+  assign an EAN or flip a listing/style status and confirm the audit log entry appears).
 
 ## Recent work (most recent first, from git log)
 

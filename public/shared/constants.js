@@ -12,6 +12,7 @@ const MODULE_BY_PAGE_ID = {
   search: 'Search',
   audit: 'Audit Trail',
   ai: 'AI Copilot',
+  agent: 'AI Agent',
   import: 'Import',
   users: 'User Management',
   roles: 'Roles & Permissions',

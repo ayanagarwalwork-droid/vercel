@@ -12,6 +12,7 @@
 const { requireModulePermission, withErrorHandling, HttpError } = require('../_lib/auth');
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
 const { writeAudit } = require('../_lib/audit');
+const { syncSkusForStyle } = require('../_lib/skus');
 
 module.exports = withErrorHandling(async (req, res) => {
   // vercel.json rewrites /api/styles(/*) here, forwarding the sub-path (if
@@ -50,6 +51,8 @@ module.exports = withErrorHandling(async (req, res) => {
         ({ data, error } = await supabaseAdmin.rpc('create_style_with_code', rpcArgs));
       }
       if (error) throw new HttpError(400, error.message);
+
+      await syncSkusForStyle(data.code, colorList, sizes);
 
       await writeAudit({
         profile: actor, action: 'create', entity: 'Style',
@@ -120,6 +123,8 @@ module.exports = withErrorHandling(async (req, res) => {
       const { data: updated, error } = await supabaseAdmin
         .from('styles').update(patch).eq('code', code).select().single();
       if (error) throw new HttpError(500, error.message);
+
+      if (sizes !== undefined) await syncSkusForStyle(code, existing.colors, sizes);
 
       await writeAudit({
         profile: actor, action: 'update', entity: 'Style',

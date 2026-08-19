@@ -18,6 +18,8 @@
     { "source": "/api/listings/:path*", "destination": "/api/listings/handler?path=:path*" },
     { "source": "/api/styles", "destination": "/api/styles/handler" },
     { "source": "/api/styles/:path*", "destination": "/api/styles/handler?path=:path*" },
+    { "source": "/api/ean", "destination": "/api/ean/handler" },
+    { "source": "/api/ean/:path*", "destination": "/api/ean/handler?path=:path*" },
     { "source": "/api/import/:path*", "destination": "/api/import/handler?path=:path*" }
   ]
 }
