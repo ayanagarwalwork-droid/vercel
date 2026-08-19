@@ -626,17 +626,6 @@
     .empty-state { padding: 40px; text-align: center; color: var(--text3); font-size: 13px; }
 
     /* ── REPORTS PAGE ────────────────────────────── */
-    .report-tabs { display: flex; border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .report-tab {
-      padding: 10px 15px; font-size: 11px; font-weight: 500; letter-spacing: 0.05em;
-      text-transform: uppercase; color: var(--text3); cursor: pointer; white-space: nowrap;
-      border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s;
-      display: inline-flex; align-items: center; gap: 6px;
-    }
-    .report-tab:hover { color: var(--text2); }
-    .report-tab.active { color: var(--text); border-bottom-color: var(--accent); }
-    .tab-count { padding: 1px 5px; border-radius: 2px; font-size: 9px; font-weight: 700; background: var(--surface2); color: var(--text3); }
-    .tab-count-warn { background: rgba(185,74,58,0.12); color: var(--danger); }
     .report-content { padding: 20px 0; }
     .report-info { font-size: 12px; color: var(--text2); margin-bottom: 16px; padding: 9px 14px; background: var(--surface2); border-left: 3px solid var(--border2); }
 
@@ -978,11 +967,6 @@
     .dash-cell:nth-child(4n+2) { box-shadow: inset 0 3px 0 var(--pop-green); }
     .dash-cell:nth-child(4n+3) { box-shadow: inset 0 3px 0 var(--saffron); }
     .dash-cell:nth-child(4n+4) { box-shadow: inset 0 3px 0 var(--banana); }
-
-    /* 14 · REPORT TAB — lavender active underline */
-    .report-tab { padding: 12px 16px; }
-    .report-tab.active { color: var(--text); border-bottom-color: var(--lavender); }
-    .report-tab:active { transform: scale(0.98); }
 
     /* 15 · CATEGORY CHIPS */
     .cat-chip { border-radius: 2px; font-weight: 500; }
@@ -1647,7 +1631,10 @@
             </div>
           </div>
         </div>
-        <div class="report-tabs" id="reportsTabs"></div>
+        <div class="filter-row">
+          <select class="filter-select" id="skuAgeSelect" onchange="selectSkuAgeBucket(this.value)"></select>
+          <select class="filter-select" id="reportTypeSelect" onchange="switchReportTab(this.value)"></select>
+        </div>
         <div class="report-content" id="reportsContent"></div>
       </div>
       <!-- ── COSTING ── -->
@@ -3552,17 +3539,16 @@ function filterListingsCat(code) {
 // ── REPORTS ───────────────────────────────────────────────────────────────
 let activeReportTab = 'missing-ean';
 const REPORT_TABS = [
-  { id:'missing-ean',     label:'Missing EAN',         warn:true  },
-  { id:'missing-images',  label:'Missing Images',       warn:true  },
-  { id:'mkt-mapping',     label:'Marketplace Mapping',  warn:false },
-  { id:'inactive-styles', label:'Inactive Styles',      warn:false },
-  { id:'launches',        label:'Product Launches',     warn:false },
-  { id:'duplicates',      label:'Duplicate Listings',   warn:false },
-  { id:'costing',         label:'Costing Pending',      warn:true  },
-  { id:'barcode',         label:'Barcode Pending',      warn:true  },
-  { id:'relisting',       label:'Relisting Report',     warn:false },
-  { id:'sku-creation',    label:'SKU Creation',         warn:false },
-  { id:'sku-progress',    label:'Old vs New SKUs',      warn:true  },
+  { id:'missing-ean',     label:'Missing EAN' },
+  { id:'missing-images',  label:'Missing Images' },
+  { id:'mkt-mapping',     label:'Marketplace Mapping' },
+  { id:'inactive-styles', label:'Inactive Styles' },
+  { id:'launches',        label:'Product Launches' },
+  { id:'duplicates',      label:'Duplicate Listings' },
+  { id:'costing',         label:'Costing Pending' },
+  { id:'barcode',         label:'Barcode Pending' },
+  { id:'relisting',       label:'Relisting Report' },
+  { id:'sku-creation',    label:'SKU Creation' },
 ];
 
 // A SKU counts as "New" if it was created within the trailing window (days);
@@ -3589,12 +3575,23 @@ function skuRemainingItems(sku) {
   if (!hasLiveListing) missing.push('Listing');
   return missing;
 }
+// Which age bucket the "Old SKU / New SKU" dropdown is showing — separate
+// control from activeReportTab so the two dropdowns (age bucket vs. every
+// other report type) can stay independent and still agree on what's on screen.
+let skuAgeBucket = 'new';
+function selectSkuAgeBucket(v) {
+  if (!v) return;
+  skuAgeBucket = v;
+  activeReportTab = 'sku-progress';
+  renderReports();
+}
 function switchSkuAgeWindow(v) { skuAgeWindowDays = +v; renderReports(); }
 
 function renderReports() {
-  const tabsEl = document.getElementById('reportsTabs');
+  const ageSel = document.getElementById('skuAgeSelect');
+  const typeSel = document.getElementById('reportTypeSelect');
   const contentEl = document.getElementById('reportsContent');
-  if (!tabsEl || !contentEl) return;
+  if (!ageSel || !typeSel || !contentEl) return;
 
   const counts = {
     'missing-ean':     SKUS_DATA.filter(s=>!s.ean).length,
@@ -3604,20 +3601,28 @@ function renderReports() {
     'costing':         STYLES_DATA.filter(s=>!s.mrp||!s.costPrice).length,
     'barcode':         SKUS_DATA.filter(s=>s.eanStatus==='assigned').length,
     'relisting':       LISTINGS_DATA.filter(l=>l.type==='relisting').length,
-    'sku-progress':    SKUS_DATA.filter(s=>isNewSku(s) && skuRemainingItems(s).length).length,
   };
 
-  tabsEl.innerHTML = REPORT_TABS.map(t => {
-    const active = activeReportTab === t.id ? ' active' : '';
+  typeSel.innerHTML = '<option value="">More reports…</option>' + REPORT_TABS.map(t => {
     const n = counts[t.id] || 0;
-    const badge = n > 0 ? `<span class="tab-count${t.warn?' tab-count-warn':''}">${n}</span>` : '';
-    return `<div class="report-tab${active}" onclick="switchReportTab('${t.id}')">${t.label}${badge}</div>`;
+    return `<option value="${t.id}"${activeReportTab===t.id?' selected':''}>${t.label}${n>0?` (${n})`:''}</option>`;
   }).join('');
+
+  const newCount = SKUS_DATA.filter(isNewSku).length;
+  const oldCount = SKUS_DATA.length - newCount;
+  const onAge = activeReportTab === 'sku-progress';
+  ageSel.innerHTML = `<option value="">Old SKU / New SKU…</option>
+    <option value="new"${onAge && skuAgeBucket==='new' ? ' selected' : ''}>New SKUs (${newCount})</option>
+    <option value="old"${onAge && skuAgeBucket==='old' ? ' selected' : ''}>Old SKUs (${oldCount})</option>`;
 
   renderReportContent(activeReportTab, contentEl);
 }
 
-function switchReportTab(id) { activeReportTab = id; renderReports(); }
+function switchReportTab(id) {
+  if (!id) return;
+  activeReportTab = id;
+  renderReports();
+}
 
 function renderReportContent(tab, el) {
   const info = s => `<div class="report-info">${s}</div>`;
@@ -3758,19 +3763,20 @@ function renderReportContent(tab, el) {
     return;
   }
   if (tab === 'sku-progress') {
-    const windowSel = `<select class="filter-select" style="margin-bottom:14px" onchange="switchSkuAgeWindow(this.value)">
+    const isNew = skuAgeBucket !== 'old';
+    const windowSel = isNew ? `<select class="filter-select" style="margin-bottom:14px" onchange="switchSkuAgeWindow(this.value)">
       ${[7,14,30,60,90].map(d => `<option value="${d}"${d===skuAgeWindowDays?' selected':''}>New = created in last ${d} days</option>`).join('')}
-    </select>`;
+    </select>` : '';
 
     const cell = (ok) => ok ? `<span class="lst-tag lst-live">Done</span>` : `<span class="lst-tag lst-pending">Missing</span>`;
 
-    const renderBucket = (title, list, emptyMsg) => {
-      const heading = `<div style="font-family:var(--font-display);font-size:18px;margin-bottom:10px">${title} <span style="font-size:12px;color:var(--text3)">(${list.length})</span></div>`;
-      if (!list.length) {
-        return `<div style="margin-bottom:28px">${heading}
-          <div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;background:var(--surface2)">${emptyMsg}</div>
-        </div>`;
-      }
+    const list = SKUS_DATA.filter(s => isNew ? isNewSku(s) : !isNewSku(s));
+    const emptyMsg = isNew ? 'No SKUs created in this window.' : 'Nothing outside the New window yet.';
+
+    let body;
+    if (!list.length) {
+      body = `<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;background:var(--surface2)">${emptyMsg}</div>`;
+    } else {
       const rows = list.map(s => {
         const style = STYLES_DATA.find(x => x.code === s.styleCode);
         const hasImg = !!(style && style.images && style.images.length);
@@ -3784,18 +3790,11 @@ function renderReportContent(tab, el) {
           <td>${cell(hasImg)}</td><td>${cell(!!s.ean)}</td><td>${cell(hasCosting)}</td><td>${cell(hasListing)}</td>
           <td>${remainingHtml}</td></tr>`;
       }).join('');
-      return `<div style="margin-bottom:28px">${heading}
-        ${tbl('<th>AOBA SKU</th><th>Style</th><th>Image</th><th>EAN</th><th>Costing</th><th>Listing</th><th>Remaining</th>', rows)}
-      </div>`;
-    };
+      body = tbl('<th>AOBA SKU</th><th>Style</th><th>Image</th><th>EAN</th><th>Costing</th><th>Listing</th><th>Remaining</th>', rows);
+    }
 
-    const newSkus = SKUS_DATA.filter(isNewSku);
-    const oldSkus = SKUS_DATA.filter(s => !isNewSku(s));
-
-    el.innerHTML = info("Segregates every SKU into New (created recently) and Old (rest of the catalog), with a per-SKU checklist of what's completed and what's still remaining.") +
-      windowSel +
-      renderBucket('New SKUs', newSkus, 'No SKUs created in this window.') +
-      renderBucket('Old SKUs', oldSkus, 'Nothing outside the New window yet.');
+    el.innerHTML = info(`${isNew ? 'New' : 'Old'} SKUs (${list.length}) — per-SKU checklist of what's completed and what's still remaining.`) +
+      windowSel + body;
     return;
   }
 }
