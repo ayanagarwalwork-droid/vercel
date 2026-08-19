@@ -22,12 +22,12 @@ Needs `.env.local` (copy from `.env.example`) with real Supabase credentials —
 
 ## Modules (all implemented per README)
 
-Dashboard, Styles, Listings, EAN/Barcode, Reports, Search, Audit Trail, Import,
-User Management, Roles & Permissions, AI Copilot, AI Agent, Settings, Guide.
+Dashboard, Styles, Listings, EAN/Barcode, Reports, Costing, Search, Audit Trail, Import,
+User Management, Roles & Permissions, AI Agent, Settings, Guide.
 
-API routes under `api/`: `_lib`, `agent`, `audit`, `auth`, `copilot`, `ean`, `import`,
-`invites`, `listings`, `roles`, `styles`, `users`. That's 11 of Vercel Hobby's 12-function cap —
-one slot of headroom left; consolidate into an existing catch-all handler before adding a 13th.
+API routes under `api/`: `_lib`, `agent`, `audit`, `auth`, `ean`, `import`,
+`invites`, `listings`, `roles`, `styles`, `users`. That's 10 of Vercel Hobby's 12-function cap —
+two slots of headroom; consolidate into an existing catch-all handler before adding a 13th.
 
 ## EAN is a SKU property, not a Listing property
 
@@ -108,30 +108,27 @@ explicitly said "will tell later — remember it for now that you have to ask it
 about this the next time Costing comes up**, don't just decide it. Right now `cost_price` and the
 new costing breakdown are completely independent — Total Cost does not touch `cost_price`.
 
-## AI Agent tools updated to match
+## AI Agent (the only AI chat feature now — AI Copilot was removed)
 
-`api/agent/chat.js`'s `search_listings` tool no longer exposes `ean_status` (that's a SKU concern
-now); added a `search_skus` tool and repointed the `assign_ean` write tool at `skus`.
+`api/agent/chat.js` — a real tool-using agent (Sonnet). It queries Supabase live via read tools
+(`search_styles`, `search_listings`, `search_skus`, `get_audit_log`, `get_import_history`) and,
+only for callers with **edit** access to the `AI Agent` module, can invoke a small whitelisted set
+of write tools (`assign_ean`, `update_listing_status`, `update_style_status`) — each one mirrors
+an existing manual endpoint's validation and writes the same audit log entry (tagged "via AI
+Agent"). View-only access to the module still allows chat/read tools, just not the write ones —
+enforced per-call server-side, not just at the door.
 
-## AI Agent vs AI Copilot
+New DB migrations `0006_add_ai_agent_module.sql` (adds the `AI Agent` enum value — must be run
+and committed on its own) and `0007_seed_ai_agent_permissions.sql` (grants edit to Founder/Admin
+only by default; grant more roles via Roles & Permissions in-app). Confirmed working live.
 
-Two separate modules/pages, both Claude-powered, deliberately not merged:
-
-- **AI Copilot** (`api/copilot/chat.js`) — answers questions grounded in a pre-computed stats
-  snapshot of the catalog. Read-only, no tool use, cheap and fast (Haiku).
-- **AI Agent** (`api/agent/chat.js`) — a real tool-using agent (Sonnet). It queries Supabase
-  live via read tools (`search_styles`, `search_listings`, `get_audit_log`,
-  `get_import_history`) and, only for callers with **edit** access to the `AI Agent` module, can
-  invoke a small whitelisted set of write tools (`assign_ean`, `update_listing_status`,
-  `update_style_status`) — each one mirrors an existing manual endpoint's validation and writes
-  the same audit log entry (tagged "via AI Agent"). View-only access to the module still allows
-  chat/read tools, just not the write ones — enforced per-call server-side, not just at the door.
-- New DB migrations `0006_add_ai_agent_module.sql` (adds the `AI Agent` enum value — must be run
-  and committed on its own) and `0007_seed_ai_agent_permissions.sql` (grants edit to
-  Founder/Admin only by default; grant more roles via Roles & Permissions in-app).
-- Not yet run against a live Supabase project or smoke-tested end-to-end — next session should
-  run migrations 0006/0007 and do a real test (ask it to look something up, then ask it to
-  assign an EAN or flip a listing/style status and confirm the audit log entry appears).
+**AI Copilot was removed** (originally a simpler stats-snapshot-only chat, Haiku-based, no tool
+use — superseded by AI Agent). Removed: `api/copilot/` (whole folder, deleted), the `page-ai`
+frontend page/nav item/JS in `desktop.html`, and all `AI Copilot` references from ROLES fallback
+perms, `PERM_SECTIONS`, and the Guide article text. The `AI Copilot` value in the `app_module`
+Postgres enum and any `role_permissions` rows referencing it were **not** removed (Postgres can't
+drop a single enum value without recreating the type — left as harmless unused data, same
+philosophy as the unused `listings.ean` columns). Function count dropped back to 10/12.
 
 ## Recent work (most recent first, from git log)
 

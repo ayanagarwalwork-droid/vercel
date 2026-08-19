@@ -1,7 +1,7 @@
 # Setup — connecting the deployed app to real infrastructure
 
 All four phases are fully coded: schema, every API endpoint, and the entire frontend migration
-(auth, users, roles, styles, listings, EAN, import, audit, reports/search, AI Copilot) are done
+(auth, users, roles, styles, listings, EAN, import, audit, reports/search, AI Agent) are done
 and verified locally to load and run with zero JS errors. Nothing is connected to a real Supabase
 project yet — that's everything below, and it's entirely manual dashboard/account work (things
 only you can do) rather than more code.
@@ -54,9 +54,8 @@ Copy `.env.example` to `.env.local` and fill in:
 - `SUPABASE_URL` — same Project URL as above
 - `SUPABASE_SERVICE_ROLE_KEY` — the service_role key (never commit this, never put it in anything
   under `public/`)
-- `ANTHROPIC_API_KEY` — from console.anthropic.com, powers the AI Copilot and AI Agent pages. Every
-  other page works fine without it; those two will just return a clear "not configured yet" error
-  until it's set.
+- `ANTHROPIC_API_KEY` — from console.anthropic.com, powers the AI Agent page. Every other page
+  works fine without it; AI Agent will just return a clear "not configured yet" error until it's set.
 - `SITE_URL` — `http://localhost:3000` for local dev; your real Vercel URL once deployed
 
 In Vercel (once the project exists, see step 8), set all four the same way under **Project
@@ -138,6 +137,6 @@ from step 4 before the first deploy.
 - Open Audit Trail (after logging back in, so it re-fetches) and confirm the actions above are
   all logged with the right actor name.
 
-**AI Copilot**
+**AI Agent**
 - Ask "how many active styles do we have?" and confirm the number matches the Dashboard stat
   exactly (that's the whole point of grounding it in real data instead of letting it guess).

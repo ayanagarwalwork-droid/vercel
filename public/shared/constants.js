@@ -12,7 +12,6 @@ const MODULE_BY_PAGE_ID = {
   costing: 'Costing',
   search: 'Search',
   audit: 'Audit Trail',
-  ai: 'AI Copilot',
   agent: 'AI Agent',
   import: 'Import',
   users: 'User Management',

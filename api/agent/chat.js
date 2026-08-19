@@ -1,8 +1,7 @@
 // POST /api/agent/chat { message, history }
-// Unlike /api/copilot/chat (a fixed stats snapshot handed to the model once),
-// this is a real tool-using agent: Claude decides which read/write tools to
-// call, we execute them against Supabase, and loop until it has a final
-// answer. Requires view on "AI Agent" to chat at all; the write-action tools
+// A real tool-using agent: Claude decides which read/write tools to call, we
+// execute them against Supabase, and loop until it has a final answer.
+// Requires view on "AI Agent" to chat at all; the write-action tools
 // additionally require edit — enforced per-call in executeTool(), not just
 // at the door, since a view-level caller could otherwise ask the model to
 // invoke one and get an error instead of a silent bypass.
@@ -267,8 +266,8 @@ module.exports = withErrorHandling(async (req, res) => {
 
   const client = getAnthropicClient();
   const systemPrompt =
-    "You are AOBA PMOS's AI Agent. Unlike the Copilot chat, you can query the live catalog " +
-    'database yourself via tools, and — for users with edit access — take a small set of ' +
+    "You are AOBA PMOS's AI Agent. You can query the live catalog database yourself via " +
+    'tools, and — for users with edit access — take a small set of ' +
     'well-defined actions (assign an EAN, change a listing status, change a style status). ' +
     'Always look up real data with a tool before answering factual questions; never guess at ' +
     "SKUs, styles, or counts. Before calling a write tool, briefly state what you're about to " +
