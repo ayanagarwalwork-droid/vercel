@@ -1065,7 +1065,6 @@
     .sd-upload-thumb-order span { font-size:9px; color:#fff; opacity:0.85; min-width:9px; text-align:center; }
     .sd-price-row { display:flex; gap:10px; margin-top:12px; }
     .sd-price-row .sd-field { flex:1; }
-    .sd-margin-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; background:rgba(90,157,111,0.1); color:var(--success); margin-top:4px; }
     .sd-field input, .sd-field textarea { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:var(--font-ui); color:var(--text); background:var(--surface); outline:none; transition:border-color 0.15s; }
     .sd-field input:focus, .sd-field textarea:focus { border-color:var(--lavender); }
   </style>
@@ -2291,7 +2290,7 @@
       <div class="sd-price-row">
         <div class="sd-field"><div class="sd-label">MRP</div><div id="sdMrp" style="font-family:var(--font-display);font-size:20px;font-style:italic">—</div></div>
         <div class="sd-field"><div class="sd-label">Cost Price</div><div id="sdCp" style="font-family:var(--font-display);font-size:20px;font-style:italic">—</div></div>
-        <div class="sd-field"><div class="sd-label">HSN Code</div><div id="sdHsn" style="font-size:13px;color:var(--text2)">—</div><div id="sdMargin" class="sd-margin-badge" style="display:none"></div></div>
+        <div class="sd-field"><div class="sd-label">HSN Code</div><div id="sdHsn" style="font-size:13px;color:var(--text2)">—</div></div>
       </div>
       <div class="sd-field" style="margin-top:12px"><div class="sd-label">Colors</div><div class="color-dots" id="sdColors" style="margin-top:6px"></div></div>
       <div class="sd-field" style="margin-top:12px"><div class="sd-label">Sizes</div><div id="sdSizes" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px"></div></div>
@@ -3877,12 +3876,6 @@ function openStyleDetail(code, mode) {
   document.getElementById('sdMrp').textContent = s.mrp ? '₹' + s.mrp : '—';
   document.getElementById('sdCp').textContent  = s.costPrice ? '₹' + s.costPrice : '—';
   document.getElementById('sdHsn').textContent = s.hsn || '—';
-  const marginEl = document.getElementById('sdMargin');
-  if (s.mrp && s.costPrice) {
-    const margin = Math.round(((s.mrp - s.costPrice) / s.mrp) * 100);
-    marginEl.textContent = margin + '% margin';
-    marginEl.style.display = '';
-  } else { marginEl.style.display = 'none'; }
 
   // Description
   const descWrap = document.getElementById('sdDescWrap');
