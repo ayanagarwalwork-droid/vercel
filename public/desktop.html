@@ -2911,6 +2911,11 @@ function applyPermissionMatrix(rows) {
   DEFAULT_PERMS.push(...ROLES.map(r => ({ name: r.name, perms: [...r.perms], editPerms: [...r.editPerms] })));
 }
 
+// Not live yet — ANTHROPIC_API_KEY / billing isn't set up. Flip to true to
+// launch; nothing else needs to change (permissions, backend, etc. are all
+// already wired up and untouched).
+const STITCH_LIVE = false;
+
 // Hides sidebar nav items the current user's role has no access to.
 // Server-side enforcement (api/_lib/auth.js) is what's actually authoritative
 // — this is the UX layer so people don't see options that would just 403.
@@ -2919,7 +2924,8 @@ function applyPermissionGating(permissions) {
     const match = n.getAttribute('onclick')?.match(/showPage\('([\w-]+)'\)/);
     const moduleName = match && MODULE_BY_PAGE_ID[match[1]];
     if (!moduleName) return;
-    n.style.display = (permissions[moduleName] && permissions[moduleName] !== 'none') ? '' : 'none';
+    const hasAccess = permissions[moduleName] && permissions[moduleName] !== 'none';
+    n.style.display = (hasAccess && (moduleName !== 'Stitch' || STITCH_LIVE)) ? '' : 'none';
   });
 }
 
@@ -3042,6 +3048,7 @@ document.addEventListener('keydown', e => {
 
 // ── NAV ───────────────────────────────────────────────────────────────────
 function showPage(id) {
+  if (id === 'agent' && !STITCH_LIVE) id = 'dashboard'; // Stitch not launched yet — see STITCH_LIVE
   try { localStorage.setItem('aoba_pmos_page', id); } catch(e) {}
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
