@@ -159,6 +159,22 @@ Postgres enum and any `role_permissions` rows referencing it were **not** remove
 drop a single enum value without recreating the type — left as harmless unused data, same
 philosophy as the unused `listings.ean` columns). Function count dropped back to 10/12.
 
+## Reports — Old vs New SKUs
+
+New "Old vs New SKUs" report tab (`sku-progress` in `REPORT_TABS`, `public/desktop.html`).
+Splits every SKU into two tables using a rolling age window on `skus.created_at` (added to the
+`GET /api/ean` response and `mapSkuFromApi` — wasn't previously sent to the frontend): "New" =
+created within the last N days (7/14/30/60/90, selectable in the UI, defaults to 30), "Old" =
+everything else. Deliberately a rolling window rather than a fixed cutoff date, so the split stays
+useful as the catalog keeps growing rather than needing to be updated — this was one of a few
+options discussed with the user (the others were a literal legacy-SKU-code-to-new-SKU-code
+migration crosswalk, and a manual per-style Old/New tag); rolling window was their pick.
+
+Each row shows a per-SKU completion checklist — Image (style has one), EAN (assigned), Costing
+(style's `costing_status === 'approved'`), Listing (has a live listing for that SKU) — plus a
+"Remaining" column listing exactly what's still missing, or "Complete" if nothing is. Logic lives
+in `isNewSku()` / `skuRemainingItems()`, right above `renderReports()`.
+
 ## Recent work (most recent first, from git log)
 
 - Verified single Vercel production deployment

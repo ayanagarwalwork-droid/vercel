@@ -19,13 +19,13 @@ module.exports = withErrorHandling(async (req, res) => {
 
     const { data, error } = await supabaseAdmin
       .from('skus')
-      .select('sku, style_code, color, size, ean, ean_status, styles(name, category)')
+      .select('sku, style_code, color, size, ean, ean_status, created_at, styles(name, category)')
       .order('sku', { ascending: true });
     if (error) throw new HttpError(500, error.message);
 
     const shaped = (data || []).map((row) => ({
       sku: row.sku, style_code: row.style_code, color: row.color, size: row.size,
-      ean: row.ean, ean_status: row.ean_status,
+      ean: row.ean, ean_status: row.ean_status, created_at: row.created_at,
       style_name: row.styles?.name || row.style_code,
       category: row.styles?.category || '',
     }));

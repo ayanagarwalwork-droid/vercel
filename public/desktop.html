@@ -2898,6 +2898,7 @@ function mapSkuFromApi(s) {
   return {
     sku: s.sku, styleCode: s.style_code, style: s.style_name, category: s.category,
     color: s.color, size: s.size, ean: s.ean, eanStatus: s.ean_status,
+    createdAt: s.created_at,
   };
 }
 
@@ -3561,7 +3562,34 @@ const REPORT_TABS = [
   { id:'barcode',         label:'Barcode Pending',      warn:true  },
   { id:'relisting',       label:'Relisting Report',     warn:false },
   { id:'sku-creation',    label:'SKU Creation',         warn:false },
+  { id:'sku-progress',    label:'Old vs New SKUs',      warn:true  },
 ];
+
+// A SKU counts as "New" if it was created within the trailing window (days);
+// everything older is "Old". Rolling window, not a fixed cutoff date, so the
+// split stays meaningful as the catalog keeps growing — adjustable in the UI
+// via skuAgeWindowDays rather than hardcoded, since "recent" is a judgment
+// call nobody wanted baked in permanently.
+let skuAgeWindowDays = 30;
+function isNewSku(sku) {
+  if (!sku.createdAt) return false;
+  const ageMs = Date.now() - new Date(sku.createdAt).getTime();
+  return ageMs <= skuAgeWindowDays * 86400000;
+}
+// What "complete" means for a SKU: has a product image (style-level), has an
+// EAN, has approved costing, has at least one live listing. Returns the
+// labels still missing so the table can show exactly what's left to do.
+function skuRemainingItems(sku) {
+  const style = STYLES_DATA.find(s => s.code === sku.styleCode);
+  const missing = [];
+  if (!style || !style.images || !style.images.length) missing.push('Image');
+  if (!sku.ean) missing.push('EAN');
+  if (!style || style.costingStatus !== 'approved') missing.push('Costing');
+  const hasLiveListing = LISTINGS_DATA.some(l => l.sku === sku.sku && l.status === 'live');
+  if (!hasLiveListing) missing.push('Listing');
+  return missing;
+}
+function switchSkuAgeWindow(v) { skuAgeWindowDays = +v; renderReports(); }
 
 function renderReports() {
   const tabsEl = document.getElementById('reportsTabs');
@@ -3576,6 +3604,7 @@ function renderReports() {
     'costing':         STYLES_DATA.filter(s=>!s.mrp||!s.costPrice).length,
     'barcode':         SKUS_DATA.filter(s=>s.eanStatus==='assigned').length,
     'relisting':       LISTINGS_DATA.filter(l=>l.type==='relisting').length,
+    'sku-progress':    SKUS_DATA.filter(s=>isNewSku(s) && skuRemainingItems(s).length).length,
   };
 
   tabsEl.innerHTML = REPORT_TABS.map(t => {
@@ -3726,6 +3755,47 @@ function renderReportContent(tab, el) {
     }).join('');
     el.innerHTML = info('Audit trail of all styles created via the SKU Engine with group-based numbering.') +
       tbl('<th>Style Code</th><th>Category</th><th>Group</th><th>Name</th><th>SKUs</th><th>Created</th>', rows);
+    return;
+  }
+  if (tab === 'sku-progress') {
+    const windowSel = `<select class="filter-select" style="margin-bottom:14px" onchange="switchSkuAgeWindow(this.value)">
+      ${[7,14,30,60,90].map(d => `<option value="${d}"${d===skuAgeWindowDays?' selected':''}>New = created in last ${d} days</option>`).join('')}
+    </select>`;
+
+    const cell = (ok) => ok ? `<span class="lst-tag lst-live">Done</span>` : `<span class="lst-tag lst-pending">Missing</span>`;
+
+    const renderBucket = (title, list, emptyMsg) => {
+      const heading = `<div style="font-family:var(--font-display);font-size:18px;margin-bottom:10px">${title} <span style="font-size:12px;color:var(--text3)">(${list.length})</span></div>`;
+      if (!list.length) {
+        return `<div style="margin-bottom:28px">${heading}
+          <div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;background:var(--surface2)">${emptyMsg}</div>
+        </div>`;
+      }
+      const rows = list.map(s => {
+        const style = STYLES_DATA.find(x => x.code === s.styleCode);
+        const hasImg = !!(style && style.images && style.images.length);
+        const hasCosting = !!(style && style.costingStatus === 'approved');
+        const hasListing = LISTINGS_DATA.some(l => l.sku === s.sku && l.status === 'live');
+        const remaining = skuRemainingItems(s);
+        const remainingHtml = remaining.length
+          ? `<span style="color:var(--text2);font-size:12px">${remaining.join(', ')}</span>`
+          : `<span class="lst-tag lst-live">Complete</span>`;
+        return `<tr><td><span class="aoba-sku-tag">${s.sku}</span></td><td>${s.style||'—'}</td>
+          <td>${cell(hasImg)}</td><td>${cell(!!s.ean)}</td><td>${cell(hasCosting)}</td><td>${cell(hasListing)}</td>
+          <td>${remainingHtml}</td></tr>`;
+      }).join('');
+      return `<div style="margin-bottom:28px">${heading}
+        ${tbl('<th>AOBA SKU</th><th>Style</th><th>Image</th><th>EAN</th><th>Costing</th><th>Listing</th><th>Remaining</th>', rows)}
+      </div>`;
+    };
+
+    const newSkus = SKUS_DATA.filter(isNewSku);
+    const oldSkus = SKUS_DATA.filter(s => !isNewSku(s));
+
+    el.innerHTML = info("Segregates every SKU into New (created recently) and Old (rest of the catalog), with a per-SKU checklist of what's completed and what's still remaining.") +
+      windowSel +
+      renderBucket('New SKUs', newSkus, 'No SKUs created in this window.') +
+      renderBucket('Old SKUs', oldSkus, 'Nothing outside the New window yet.');
     return;
   }
 }
