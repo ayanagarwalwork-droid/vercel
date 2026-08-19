@@ -4655,23 +4655,15 @@ const IMPORT_TEMPLATES = {
       'Style ID','Style Name','Sizes (comma-sep)',
       'Status','HSN Code','MRP','Cost Price','Description',
       'Image URL 1','Image URL 2','Image URL 3','Image URL 4'
-    ],
-    sample: [
-      'AIBW-001A','Triangle Bikini — Black','XS,S,M,L,XL',
-      'active','62111200','899','420','Halter neck triangle bikini in solid black',
-      'https://cdn.aoba.in/img/AIBW-001A-front.jpg',
-      'https://cdn.aoba.in/img/AIBW-001A-back.jpg','',''
     ]
   },
   listings: {
     filename: 'listings-template.csv',
-    headers: ['AOBA SKU','Style ID','Marketplace','Marketplace SKU','MRP','Status','Listed Date'],
-    sample:  ['AIBW-001A/XS','AIBW-001A','Myntra','MYN-AIBW-001A-XS','899','live','2024-01-15']
+    headers: ['AOBA SKU','Style ID','Marketplace','Marketplace SKU','MRP','Status','Listed Date']
   },
   ean: {
     filename: 'ean-template.csv',
-    headers: ['AOBA SKU','EAN (13 digits)','Status'],
-    sample:  ['AIBW-001A/XS','8901234567890','assigned']
+    headers: ['AOBA SKU','EAN (13 digits)','Status']
   },
   'style-ean': {
     filename: 'style-image-ean-template.csv',
@@ -4680,20 +4672,13 @@ const IMPORT_TEMPLATES = {
       'Status','HSN Code','MRP','Cost Price','Description',
       'Image URL 1','Image URL 2','Image URL 3','Image URL 4',
       'EAN (13 digits)'
-    ],
-    sample: [
-      'AIBW-001A','Triangle Bikini — Black','A','XS',
-      'active','62111200','899','420','Halter neck triangle bikini in solid black',
-      'https://cdn.aoba.in/img/AIBW-001A-front.jpg','','','',
-      '8901234567890'
     ]
   }
 };
 
 function downloadImportTemplate() {
   const tpl = IMPORT_TEMPLATES[currentImportTab];
-  const rows = [tpl.headers, tpl.sample];
-  const csv  = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\r\n');
+  const csv  = tpl.headers.map(v => `"${v}"`).join(',');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
