@@ -1802,6 +1802,7 @@
           <button class="import-type-tab active" onclick="switchImportTab('styles',this)">Styles &amp; Images</button>
           <button class="import-type-tab" onclick="switchImportTab('listings',this)">Listings</button>
           <button class="import-type-tab" onclick="switchImportTab('ean',this)">EAN Data</button>
+          <button class="import-type-tab" onclick="switchImportTab('style-ean',this)">Style + Image + EAN</button>
         </div>
         <div class="import-steps">
           <div class="import-step"><div class="import-step-num">01</div><div class="import-step-title">Download Template</div><div class="import-step-desc">Get the CSV template with the correct column headers for this import type.</div></div>
@@ -2823,9 +2824,10 @@ function populateAuditActorFilter() {
 function mapAuditFromApi(a) {
   return { ts: new Date(a.ts), actor: a.actor_name, role: a.role, action: a.action, entity: a.entity, detail: a.detail };
 }
+const IMPORT_TYPE_LABEL = { styles: 'Styles', listings: 'Listings', ean: 'EAN', style_ean: 'Style + EAN' };
 function mapImportHistoryFromApi(h) {
   return {
-    date: h.date, type: h.type.charAt(0).toUpperCase() + h.type.slice(1),
+    date: h.date, type: IMPORT_TYPE_LABEL[h.type] || h.type,
     file: h.filename, rows: h.row_count, status: h.status,
     by: (users.find(u => u.id === h.imported_by)?.name) || 'System',
     rawCsv: h.raw_csv,
@@ -4421,14 +4423,14 @@ function switchImportTab(type, btn) {
   currentImportTab = type;
   document.querySelectorAll('.import-type-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  const names = { styles:'styles-images-template.csv', listings:'listings-template.csv', ean:'ean-template.csv' };
+  const names = { styles:'styles-images-template.csv', listings:'listings-template.csv', ean:'ean-template.csv', 'style-ean':'style-image-ean-template.csv' };
   const lbl = document.getElementById('importDownloadLabel');
   if (lbl) lbl.textContent = 'Download ' + names[type];
-  const exportLabels = { styles:'Export current Styles data', listings:'Export current Listings data', ean:'Export current EAN data' };
+  const exportLabels = { styles:'Export current Styles data', listings:'Export current Listings data', ean:'Export current EAN data', 'style-ean':'Export current Styles data' };
   const expLbl = document.getElementById('importExportLabel');
   if (expLbl) expLbl.textContent = exportLabels[type];
   const updateWrap = document.getElementById('importUpdateExistingWrap');
-  if (updateWrap) updateWrap.style.display = type === 'styles' ? 'flex' : 'none';
+  if (updateWrap) updateWrap.style.display = (type === 'styles' || type === 'style-ean') ? 'flex' : 'none';
 }
 
 const IMPORT_TEMPLATES = {
@@ -4455,6 +4457,21 @@ const IMPORT_TEMPLATES = {
     filename: 'ean-template.csv',
     headers: ['AOBA SKU','EAN (13 digits)','Status'],
     sample:  ['AIBW-001A/XS','8901234567890','assigned']
+  },
+  'style-ean': {
+    filename: 'style-image-ean-template.csv',
+    headers: [
+      'Style ID','Style Name','Color','Size',
+      'Status','HSN Code','MRP','Cost Price','Description',
+      'Image URL 1','Image URL 2','Image URL 3','Image URL 4',
+      'EAN (13 digits)'
+    ],
+    sample: [
+      'AIBW-001A','Triangle Bikini — Black','A','XS',
+      'active','62111200','899','420','Halter neck triangle bikini in solid black',
+      'https://cdn.aoba.in/img/AIBW-001A-front.jpg','','','',
+      '8901234567890'
+    ]
   }
 };
 
@@ -4473,7 +4490,7 @@ function downloadImportTemplate() {
 function exportCurrentData() {
   const tab = currentImportTab;
   let headers, rows, filename;
-  if (tab === 'styles') {
+  if (tab === 'styles' || tab === 'style-ean') {
     headers = ['Style ID','Style Name','Sizes (comma-sep)','Status','HSN Code','MRP','Cost Price','Description','Image URL 1','Image URL 2','Image URL 3','Image URL 4'];
     rows = STYLES_DATA.map(s => {
       const imgs = ((s.images||[]).concat(['','','',''])).slice(0,4);
@@ -4655,7 +4672,7 @@ async function confirmImport() {
   const p = window._importParsed;
   if (!p) return;
   const { headers, dataRows, filename } = p;
-  const updateExisting = currentImportTab === 'styles' && !!document.getElementById('importUpdateExisting')?.checked;
+  const updateExisting = (currentImportTab === 'styles' || currentImportTab === 'style-ean') && !!document.getElementById('importUpdateExisting')?.checked;
 
   let res;
   try {
@@ -4681,9 +4698,14 @@ async function confirmImport() {
 
   IMPORT_HISTORY.unshift(mapImportHistoryFromApi(res.data.importHistory));
   renderImportHistory();
-  const summary = (created !== undefined && updated !== undefined)
-    ? `Created ${created}, updated ${updated}.`
-    : `Imported ${imported} row${imported !== 1 ? 's' : ''} successfully.${res.data.skipped ? ` (${res.data.skipped} skipped)` : ''}`;
+  let summary;
+  if (res.data.stylesCreated !== undefined) {
+    summary = `${res.data.stylesCreated} styles created, ${res.data.stylesUpdated} updated, ${res.data.skusWithEan} EANs assigned.${res.data.skipped ? ` (${res.data.skipped} skipped)` : ''}`;
+  } else if (created !== undefined && updated !== undefined) {
+    summary = `Created ${created}, updated ${updated}.`;
+  } else {
+    summary = `Imported ${imported} row${imported !== 1 ? 's' : ''} successfully.${res.data.skipped ? ` (${res.data.skipped} skipped)` : ''}`;
+  }
   toast(summary, 'success');
   clearImportPreview();
 }

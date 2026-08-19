@@ -35,6 +35,8 @@ In the Supabase dashboard, open **SQL Editor**, paste and run each file from
    everyone else by default (grant more roles from Roles & Permissions in-app once you've tried it)
 8. `0008_add_skus_table.sql` — adds the `skus` table (one row per style+color+size) and backfills it
    from existing styles. EAN now lives here, not on a Listing — see PROGRESS.md for why.
+9. `0009_add_combined_import_type.sql` — adds `style_ean` to the `import_type` enum, used by the
+   new "Style + Image + EAN" Import tab. Run and commit on its own, same as step 6.
 
 ## 3. Wire up the real Supabase URL/anon key in the frontend
 

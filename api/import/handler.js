@@ -1,12 +1,14 @@
 // Catch-all for /api/import/history, /api/import/styles, /api/import/listings,
-// /api/import/ean — consolidated into one file (was 4 separate files) to stay
+// /api/import/ean, /api/import/style-ean — consolidated into one file to stay
 // under Vercel Hobby's 12 serverless function limit. URL paths the frontend
 // calls are unchanged.
 //
-// GET  /api/import/history  — most recent import runs. Requires view on Import.
-// POST /api/import/styles   — bulk-create styles from a parsed CSV. Requires edit.
-// POST /api/import/listings — bulk-create listings from a parsed CSV. Requires edit.
-// POST /api/import/ean      — bulk-update SKUs' EAN from a parsed CSV. Requires edit.
+// GET  /api/import/history   — most recent import runs. Requires view on Import.
+// POST /api/import/styles    — bulk-create styles from a parsed CSV. Requires edit.
+// POST /api/import/listings  — bulk-create listings from a parsed CSV. Requires edit.
+// POST /api/import/ean       — bulk-update SKUs' EAN from a parsed CSV. Requires edit.
+// POST /api/import/style-ean — one row per SKU: creates/updates the style and
+//                               assigns that row's EAN in a single pass. Requires edit.
 const { requireModulePermission, withErrorHandling, HttpError } = require('../_lib/auth');
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
 const { writeAudit } = require('../_lib/audit');
@@ -200,6 +202,109 @@ async function importEan(req, actor) {
   return { imported, skipped, importHistory: historyRow };
 }
 
+// One row per SKU (style+color+size), unlike importStyles' one-row-per-style
+// shape. Style-level fields (name/HSN/MRP/etc/images) are read off the first
+// row seen for a given Style ID; colors/sizes are the distinct values seen
+// across that style's rows rather than guessed, so — unlike importStyles,
+// which deliberately never touches colors on an update because its
+// single-letter guess isn't trustworthy — this path can safely set/update
+// colors too, since the CSV states them explicitly.
+async function importStyleEan(req, actor) {
+  const { headers, dataRows, filename, rawCsv, updateExisting } = req.body || {};
+  if (!Array.isArray(headers) || !Array.isArray(dataRows)) throw new HttpError(400, 'Missing headers/dataRows.');
+
+  const idIdx = headers.indexOf('Style ID');
+  const nameIdx = headers.indexOf('Style Name');
+  const colorIdx = headers.indexOf('Color');
+  const sizeIdx = headers.indexOf('Size');
+  const statIdx = headers.indexOf('Status');
+  const hsnIdx = headers.indexOf('HSN Code');
+  const mrpIdx = headers.indexOf('MRP');
+  const cpIdx = headers.indexOf('Cost Price');
+  const descIdx = headers.indexOf('Description');
+  const imgIdx = [1, 2, 3, 4].map((n) => headers.indexOf(`Image URL ${n}`));
+  const eanIdx = headers.indexOf('EAN (13 digits)');
+
+  const groups = new Map(); // code -> { rows: [...] }
+  for (const row of dataRows) {
+    const code = row[idIdx];
+    const color = (row[colorIdx] || '').trim();
+    const size = (row[sizeIdx] || '').trim();
+    if (!code || !color || !size) continue;
+    if (!groups.has(code)) groups.set(code, []);
+    groups.get(code).push({ row, color, size });
+  }
+
+  const { data: existing } = await supabaseAdmin.from('styles').select('code');
+  const existingCodes = new Set((existing || []).map((s) => s.code));
+
+  let stylesCreated = 0;
+  let stylesUpdated = 0;
+  let skusWithEan = 0;
+  let skipped = 0;
+
+  for (const [code, entries] of groups) {
+    const first = entries[0].row;
+    const colors = [...new Set(entries.map((e) => e.color))];
+    const sizes = [...new Set(entries.map((e) => e.size))];
+    const images = imgIdx.map((i) => (i >= 0 ? (first[i] || '').trim() : '')).filter(Boolean).map(normalizeImageUrl);
+
+    if (existingCodes.has(code)) {
+      if (updateExisting) {
+        const patch = { colors, sizes };
+        if (nameIdx >= 0 && first[nameIdx]) patch.name = first[nameIdx];
+        if (statIdx >= 0 && first[statIdx]) patch.status = first[statIdx];
+        if (hsnIdx >= 0 && first[hsnIdx]) patch.hsn_code = first[hsnIdx];
+        if (mrpIdx >= 0 && first[mrpIdx]) patch.mrp = first[mrpIdx];
+        if (cpIdx >= 0 && first[cpIdx]) patch.cost_price = first[cpIdx];
+        if (descIdx >= 0 && first[descIdx]) patch.description = first[descIdx];
+        if (images.length) patch.images = images;
+        patch.updated_at = new Date().toISOString();
+        const { error } = await supabaseAdmin.from('styles').update(patch).eq('code', code);
+        if (error) throw new HttpError(500, error.message);
+        stylesUpdated++;
+      }
+      await syncSkusForStyle(code, colors, sizes);
+    } else {
+      const prefix = code.replace(/-\d.*$/, '');
+      const { error } = await supabaseAdmin.from('styles').insert({
+        code, name: (nameIdx >= 0 && first[nameIdx]) || code, category: prefix,
+        status: (statIdx >= 0 && first[statIdx]) || 'active',
+        hsn_code: hsnIdx >= 0 ? first[hsnIdx] || null : null,
+        mrp: mrpIdx >= 0 ? first[mrpIdx] || null : null,
+        cost_price: cpIdx >= 0 ? first[cpIdx] || null : null,
+        description: descIdx >= 0 ? first[descIdx] || null : null,
+        images, colors, sizes, created_by: actor.id,
+      });
+      if (error) throw new HttpError(500, error.message);
+      existingCodes.add(code);
+      stylesCreated++;
+      await syncSkusForStyle(code, colors, sizes);
+    }
+
+    for (const { row, color, size } of entries) {
+      const ean = eanIdx >= 0 ? row[eanIdx] : '';
+      if (!ean) continue;
+      if (!/^\d{8}$|^\d{12,14}$/.test(String(ean))) { skipped++; continue; }
+      const sku = `${code}${color}/${size}`;
+      const { data: updated, error } = await supabaseAdmin
+        .from('skus')
+        .update({ ean, ean_status: 'assigned', updated_at: new Date().toISOString() })
+        .eq('sku', sku).select('sku');
+      if (error) throw new HttpError(500, error.message);
+      if (!updated.length) { skipped++; continue; }
+      skusWithEan++;
+    }
+  }
+
+  const imported = stylesCreated + stylesUpdated;
+  const historyRow = await writeImportHistory({
+    type: 'style_ean', filename, imported, rawCsv, actor,
+    note: ` — ${stylesCreated} styles created, ${stylesUpdated} updated, ${skusWithEan} EANs assigned${skipped ? `, ${skipped} skipped` : ''}`,
+  });
+  return { imported, stylesCreated, stylesUpdated, skusWithEan, skipped, importHistory: historyRow };
+}
+
 module.exports = withErrorHandling(async (req, res) => {
   // vercel.json rewrites /api/import/* here, forwarding the sub-path as
   // ?path=... — always exactly one segment (history/styles/listings/ean).
@@ -216,7 +321,7 @@ module.exports = withErrorHandling(async (req, res) => {
     return res.status(200).json({ data });
   }
 
-  if (!['styles', 'listings', 'ean'].includes(route)) throw new HttpError(404, 'Not found.');
+  if (!['styles', 'listings', 'ean', 'style-ean'].includes(route)) throw new HttpError(404, 'Not found.');
   if (req.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
 
   const { profile: actor } = await requireModulePermission(req, 'Import', 'edit');
@@ -224,6 +329,7 @@ module.exports = withErrorHandling(async (req, res) => {
   let result;
   if (route === 'styles') result = await importStyles(req, actor);
   else if (route === 'listings') result = await importListings(req, actor);
+  else if (route === 'style-ean') result = await importStyleEan(req, actor);
   else result = await importEan(req, actor);
 
   res.status(200).json({ data: result });

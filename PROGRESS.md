@@ -63,6 +63,22 @@ Listings entirely:
   Editor) before this deploys correctly. Until then the live site is still on the old
   listings-based EAN code.
 
+## Combined Style + Image + EAN import
+
+Added as a 4th, separate Import tab (`Style + Image + EAN`) — not merged into the existing Styles
+import, per explicit request. New route `POST /api/import/style-ean` in `api/import/handler.js`
+(`importStyleEan`), new migration `0009_add_combined_import_type.sql` (adds `style_ean` to the
+`import_type` enum — run and commit on its own, same enum-in-a-transaction restriction as 0006).
+
+Shape is **one row per SKU** (Style ID, Style Name, Color, Size, Status, HSN, MRP, Cost Price,
+Description, up to 4 Image URLs, EAN) — unlike the plain Styles import, which is one row per style
+with a comma-separated sizes list. Rows are grouped by Style ID server-side: the style is
+created/updated once (colors/sizes = the distinct values seen across that style's rows — since
+they're explicit here, not guessed, colors *can* be safely updated on re-import, unlike the plain
+Styles import path), `syncSkusForStyle()` ensures every color×size SKU exists, then each row's EAN
+(if present and valid) is assigned to that specific SKU. `updateExisting` checkbox works the same
+as the Styles tab.
+
 ## AI Agent tools updated to match
 
 `api/agent/chat.js`'s `search_listings` tool no longer exposes `ean_status` (that's a SKU concern
