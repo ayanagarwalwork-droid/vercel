@@ -26,18 +26,19 @@ module.exports = withErrorHandling(async (req, res) => {
     throw new HttpError(401, 'Unauthorized.');
   }
 
-  const [tableResults, profileCount] = await Promise.all([
-    Promise.all(TABLES.map((table) => supabaseAdmin.from(table).select('*'))),
-    supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }),
-  ]);
-
+  // Queried sequentially, not in parallel -- every other endpoint in this
+  // app fires one Supabase query per request; a burst of simultaneous
+  // queries from the same client here was enough to trip a
+  // "JWT issued at future" error server-side that a single query never hits.
+  // Well within the Hobby plan's 10s cron timeout at this catalog's size.
   const bundle = { generated_at: new Date().toISOString(), tables: {} };
-  TABLES.forEach((table, i) => {
-    const { data, error } = tableResults[i];
+  for (const table of TABLES) {
+    const { data, error } = await supabaseAdmin.from(table).select('*');
     if (error) throw new HttpError(500, `Failed exporting ${table}: ${error.message}`);
     bundle.tables[table] = data || [];
-  });
-  bundle.tables.profiles_count = profileCount.count || 0;
+  }
+  const { count } = await supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true });
+  bundle.tables.profiles_count = count || 0;
 
   const json = JSON.stringify(bundle, null, 2);
   const path = `backup-${bundle.generated_at.slice(0, 10)}-${Date.now()}.json`;
