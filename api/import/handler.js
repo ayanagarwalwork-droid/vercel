@@ -209,14 +209,24 @@ async function importEan(req, actor) {
 // which deliberately never touches colors on an update because its
 // single-letter guess isn't trustworthy — this path can safely set/update
 // colors too, since the CSV states them explicitly.
+//
+// The SKU column bundles Style ID + Size into one field ('AOD-1A/S') rather
+// than two separate columns, matching the format the team's own master
+// sheet already uses, so that column can be pasted in directly. Split on the
+// *last* '/' rather than the first, since a Style ID can itself contain one.
+function splitBundledSku(bundled) {
+  const lastSlash = bundled.lastIndexOf('/');
+  if (lastSlash <= 0 || lastSlash === bundled.length - 1) return null;
+  return { code: bundled.slice(0, lastSlash), size: bundled.slice(lastSlash + 1).trim() };
+}
+
 async function importStyleEan(req, actor) {
   const { headers, dataRows, filename, rawCsv, updateExisting } = req.body || {};
   if (!Array.isArray(headers) || !Array.isArray(dataRows)) throw new HttpError(400, 'Missing headers/dataRows.');
 
-  const idIdx = headers.indexOf('Style ID');
+  const skuIdx = headers.indexOf('SKU');
   const nameIdx = headers.indexOf('Style Name');
   const colorIdx = headers.indexOf('Color');
-  const sizeIdx = headers.indexOf('Size');
   const statIdx = headers.indexOf('Status');
   const hsnIdx = headers.indexOf('HSN Code');
   const mrpIdx = headers.indexOf('MRP');
@@ -227,10 +237,13 @@ async function importStyleEan(req, actor) {
 
   const groups = new Map(); // code -> { rows: [...] }
   for (const row of dataRows) {
-    const code = row[idIdx];
+    const bundled = (row[skuIdx] || '').trim();
+    if (!bundled) continue;
+    const split = splitBundledSku(bundled);
+    if (!split) continue;
+    const { code, size } = split;
     const color = (row[colorIdx] || '').trim();
-    const size = (row[sizeIdx] || '').trim();
-    if (!code || !color || !size) continue;
+    if (!color || !size) continue;
     if (!groups.has(code)) groups.set(code, []);
     groups.get(code).push({ row, color, size });
   }

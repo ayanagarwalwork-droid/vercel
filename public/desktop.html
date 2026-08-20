@@ -4695,9 +4695,14 @@ const IMPORT_TEMPLATES = {
     headers: ['AOBA SKU','EAN (13 digits)','Status']
   },
   'style-ean': {
+    // SKU bundles Style ID + Size into one field ('AOD-1A/S'), matching how
+    // the team's own master sheet already lays it out — so a bulk sheet's
+    // SKU column can be copy-pasted straight in instead of being split into
+    // two columns first. Color stays separate since it's still a distinct
+    // value the SKU Engine needs (see api/import/handler.js's importStyleEan).
     filename: 'style-image-ean-template.csv',
     headers: [
-      'Style ID','Style Name','Color','Size',
+      'SKU','Style Name','Color',
       'Status','HSN Code','MRP','Cost Price','Description',
       'Image URL 1','Image URL 2','Image URL 3','Image URL 4',
       'EAN (13 digits)'
