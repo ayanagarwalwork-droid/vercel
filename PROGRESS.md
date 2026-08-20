@@ -63,26 +63,33 @@ Listings entirely:
   Editor) before this deploys correctly. Until then the live site is still on the old
   listings-based EAN code.
 
-## Combined Style + Image + EAN import
+## Both Styles imports are one row per SKU, with a bundled SKU column
 
-Added as a 4th, separate Import tab (`Style + Image + EAN`) — not merged into the existing Styles
-import, per explicit request. New route `POST /api/import/style-ean` in `api/import/handler.js`
-(`importStyleEan`), new migration `0009_add_combined_import_type.sql` (adds `style_ean` to the
-`import_type` enum — run and commit on its own, same enum-in-a-transaction restriction as 0006).
+Both the plain **Styles & Images** import and the **Style + Image + EAN** import (added as a 4th,
+separate Import tab, not merged into Styles, per explicit request) share the same row shape: one
+row per SKU, not one row per style. The **SKU column bundles Style ID + Size into one field**
+(`AOD-1A/S`) rather than separate Style ID / Size(s) columns — matches the format the team's own
+master spreadsheet already uses, so that column can be copy-pasted straight in rather than split
+apart first. Color stays its own column since the SKU Engine still needs it as a distinct value.
+Style + Image + EAN adds one more column on top: EAN.
 
-Shape is **one row per SKU** (SKU, Style Name, Color, Status, HSN, MRP, Cost Price, Description,
-up to 4 Image URLs, EAN) — unlike the plain Styles import, which is one row per style with a
-comma-separated sizes list. The **SKU column bundles Style ID + Size into one field** (`AOD-1A/S`)
-rather than two separate columns — matches the format the team's own master spreadsheet already
-uses for this, so that column can be copy-pasted straight in rather than split apart first. The
-backend (`splitBundledSku()` in `importStyleEan`, `api/import/handler.js`) splits it back apart on
-the *last* `/`. Color stays its own column since the SKU Engine still needs it as a distinct value.
+Originally the plain Styles import was one row *per style*, with a comma-separated `Sizes`
+column — changed to match Style + Image + EAN's shape (and the master spreadsheet) on request.
+Both routes now share one grouping/upsert helper, `upsertStylesFromRows()` in
+`api/import/handler.js`: rows are grouped by Style ID server-side, the style is created/updated
+once per group (colors/sizes = the distinct values seen across that style's rows — since they're
+explicit here, not guessed, colors *can* be safely updated on re-import, unlike the old
+one-row-per-style shape's `code.slice(-1)` guess), then `syncSkusForStyle()` ensures every
+color×size SKU exists. `importStyleEan` calls the same helper and then does one extra pass
+assigning each row's EAN (if present and valid) to its specific SKU. `splitBundledSku()` parses
+the bundled SKU column, splitting on the *last* `/` (a Style ID can itself contain one).
+`updateExisting` checkbox works the same on both tabs.
 
-Rows are grouped by Style ID server-side: the style is created/updated once (colors/sizes = the
-distinct values seen across that style's rows — since they're explicit here, not guessed, colors
-*can* be safely updated on re-import, unlike the plain Styles import path), `syncSkusForStyle()`
-ensures every color×size SKU exists, then each row's EAN (if present and valid) is assigned to
-that specific SKU. `updateExisting` checkbox works the same as the Styles tab.
+The Import page's "Export current data" button and the Styles page's "Export CSV" button
+(`skuExportRows()` in `public/desktop.html`) were updated to the same bundled-SKU, one-row-per-SKU
+shape too, so an exported CSV can be edited and dropped straight back into either import tab
+without reshaping it — they'd otherwise have produced a CSV the new import format could no longer
+read back in.
 
 ## Costing dashboard
 

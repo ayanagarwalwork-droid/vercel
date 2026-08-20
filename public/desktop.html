@@ -4679,9 +4679,13 @@ function switchImportTab(type, btn) {
 
 const IMPORT_TEMPLATES = {
   styles: {
+    // SKU bundles Style ID + Size into one field ('AOD-1A/S'), matching the
+    // team's own master sheet and the Style + Image + EAN template below —
+    // one row per SKU, not per style, so a master sheet's SKU column can be
+    // pasted straight in.
     filename: 'styles-images-template.csv',
     headers: [
-      'Style ID','Style Name','Sizes (comma-sep)',
+      'SKU','Style Name','Color',
       'Status','HSN Code','MRP','Cost Price','Description',
       'Image URL 1','Image URL 2','Image URL 3','Image URL 4'
     ]
@@ -4725,11 +4729,8 @@ function exportCurrentData() {
   const tab = currentImportTab;
   let headers, rows, filename;
   if (tab === 'styles' || tab === 'style-ean') {
-    headers = ['Style ID','Style Name','Sizes (comma-sep)','Status','HSN Code','MRP','Cost Price','Description','Image URL 1','Image URL 2','Image URL 3','Image URL 4'];
-    rows = STYLES_DATA.map(s => {
-      const imgs = ((s.images||[]).concat(['','','',''])).slice(0,4);
-      return [s.code, s.name||'', (s.sizes||[]).join(','), s.status||'active', s.hsn||'', s.mrp||'', s.costPrice||'', s.description||'', ...imgs];
-    });
+    headers = ['SKU','Style Name','Color','Status','HSN Code','MRP','Cost Price','Description','Image URL 1','Image URL 2','Image URL 3','Image URL 4'];
+    rows = skuExportRows();
     filename = 'styles-export.csv';
   } else if (tab === 'listings') {
     headers = ['AOBA SKU','Style ID','Marketplace','Marketplace SKU','MRP','Status','Listed Date'];
@@ -4750,20 +4751,30 @@ function exportCurrentData() {
   toast('Exported ' + rows.length + ' rows to ' + filename, 'success');
 }
 
-function exportStyles() {
-  if (!STYLES_DATA.length) { toast('No styles to export yet.', 'error'); return; }
-  const headers = ['Style ID','Style Name','Sizes (comma-sep)','Status','HSN Code','MRP','Cost Price','Description','Image URL 1','Image URL 2','Image URL 3','Image URL 4'];
-  const rows = STYLES_DATA.map(s => {
+// One row per SKU, matching the bundled-SKU import shape ('AOD-1A/S') so an
+// exported CSV can be edited and dropped straight back into the Styles &
+// Images or Style + Image + EAN import tab without reshaping it first.
+function skuExportRows() {
+  const styleByCode = new Map(STYLES_DATA.map(s => [s.code, s]));
+  return SKUS_DATA.map(sk => {
+    const s = styleByCode.get(sk.styleCode);
+    if (!s) return null;
     const imgs = ((s.images||[]).concat(['','','',''])).slice(0,4);
-    return [s.code, s.name||'', (s.sizes||[]).join(','), s.status||'active', s.hsn||'', s.mrp||'', s.costPrice||'', s.description||'', ...imgs];
-  });
+    return [`${s.code}/${sk.size}`, s.name||'', sk.color||'', s.status||'active', s.hsn||'', s.mrp||'', s.costPrice||'', s.description||'', ...imgs];
+  }).filter(Boolean);
+}
+
+function exportStyles() {
+  if (!SKUS_DATA.length) { toast('No styles to export yet.', 'error'); return; }
+  const headers = ['SKU','Style Name','Color','Status','HSN Code','MRP','Cost Price','Description','Image URL 1','Image URL 2','Image URL 3','Image URL 4'];
+  const rows = skuExportRows();
   const csv = [headers, ...rows].map(r => r.map(v => `"${(v||'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'styles-export.csv'; a.click();
   URL.revokeObjectURL(url);
-  toast('Exported ' + rows.length + ' styles.', 'success');
+  toast('Exported ' + rows.length + ' rows.', 'success');
 }
 
 function exportImportHistory() {
