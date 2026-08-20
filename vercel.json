@@ -21,5 +21,8 @@
     { "source": "/api/ean", "destination": "/api/ean/handler" },
     { "source": "/api/ean/:path*", "destination": "/api/ean/handler?path=:path*" },
     { "source": "/api/import/:path*", "destination": "/api/import/handler?path=:path*" }
+  ],
+  "crons": [
+    { "path": "/api/backup", "schedule": "0 3 * * 0" }
   ]
 }

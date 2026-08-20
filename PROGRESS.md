@@ -25,9 +25,9 @@ Needs `.env.local` (copy from `.env.example`) with real Supabase credentials —
 Dashboard, Styles, Listings, EAN/Barcode, Reports, Costing, Search, Audit Trail, Import,
 User Management, Roles & Permissions, Stitch, Settings, Guide.
 
-API routes under `api/`: `_lib`, `agent`, `audit`, `auth`, `ean`, `import`,
-`invites`, `listings`, `roles`, `styles`, `users`. That's 10 of Vercel Hobby's 12-function cap —
-two slots of headroom; consolidate into an existing catch-all handler before adding a 13th.
+API routes under `api/`: `_lib`, `agent`, `audit`, `auth`, `backup`, `ean`, `import`,
+`invites`, `listings`, `roles`, `styles`, `users`. That's 11 of Vercel Hobby's 12-function cap —
+one slot of headroom left; consolidate into an existing catch-all handler before adding a 13th.
 
 ## EAN is a SKU property, not a Listing property
 
@@ -187,6 +187,72 @@ Each row shows a per-SKU completion checklist — Image (style has one), EAN (as
 "Remaining" column listing exactly what's still missing, or "Complete" if nothing is. Logic lives
 in `isNewSku()` / `skuRemainingItems()`, right above `renderReports()`.
 
+## Real two-factor authentication (not just a toggle)
+
+Found during a full-site audit: Settings → Security had a "Require 2FA for Founder & Admin"
+toggle claiming to be "Enforced for all users with elevated roles," and User Management's
+"Require 2FA on login for this user" checkbox saved `profiles.two_fa` — but nothing anywhere
+actually checked that flag. Both were pure UI, no enforcement. Fixed for real, using Supabase
+Auth's built-in MFA (TOTP):
+
+- **Server-side (`api/_lib/auth.js`)** — the actual enforcement, not just a client gate. When
+  `profile.two_fa` is true, `requireModulePermission()` decodes the bearer token's `aal`
+  (Authenticator Assurance Level) claim — which Supabase's own servers set, not forgeable
+  client-side — and rejects with `401 Two-factor authentication required.` unless it's `aal2`
+  (meaning this session has actually completed an MFA challenge). `GET /api/auth/session` stays
+  reachable at `aal1` regardless (it's called with no `module` argument), since the frontend needs
+  it to even learn a challenge is required in the first place.
+- **Login flow (`public/desktop.html`)** — new `checkMfaGate()`, called from the
+  `onAuthStateChange` listener (both the normal password-login path and the invite/password-reset
+  `submitNewPassword()` path) right before `completeLogin()`. Three outcomes: already `aal2` →
+  proceed; a factor exists but unverified this session → show the code-entry screen
+  (`showMfaPage('challenge')`); no factor and `profile.two_fa` is true → force enrollment
+  immediately (`showMfaPage('enroll', totp)`, QR code + manual secret from
+  `sb.auth.mfa.enroll()`) before letting them into the app at all. New `#mfaPage` markup mirrors
+  the existing login-page split-screen layout.
+- **Self-service (`Settings → Security`)** — the fake toggle is gone; replaced with a real
+  "Two-Factor Authentication" card scoped to *your own* account (`renderMfaSettingsCard()`,
+  `toggleMyMfa()`, `confirmMyMfaEnroll()`) — enroll/disable voluntarily, independent of whether an
+  Admin has required it for you. `profiles.two_fa` stays purely the "does this account get forced
+  into enrollment" policy flag; actual enrollment state lives in Supabase Auth
+  (`sb.auth.mfa.listFactors()`), so the two can differ (required-but-not-yet-enrolled,
+  or enrolled-voluntarily-but-not-required) without needing to keep them in sync.
+- Session Timeout and IP Allowlist on the same Settings → Security page are **still fake** — out
+  of scope for this pass, only 2FA was fixed. Their "Save changes" button still just shows a
+  success toast.
+- Known gap: if an Admin flips `two_fa` to required for someone **already logged in**, their next
+  API call 401s with "Two-factor authentication required" rather than smoothly redirecting them
+  into the enrollment screen — `checkMfaGate()` only runs on fresh login, not as a live mid-session
+  interrupt. They'd need to log out and back in. Narrow edge case, not fixed yet.
+- Both real accounts (Ayan Agarwal, aayuushi.aakar) are still `two_fa: false` — this change is
+  purely additive, nothing forces either of them through enrollment until that's turned on
+  per-account from User Management.
+
+## Automated weekly backup
+
+Also from the same audit — previously discussed as future work, never built, and became urgent
+once Excel is being retired as the informal backup. `api/backup.js`, triggered by Vercel Cron
+(`vercel.json`'s `crons` entry, `0 3 * * 0` — Sunday 3am UTC; Hobby plan allows once/day minimum
+interval and actually fires sometime within that hour, not exactly on the second). Protected by a
+new `CRON_SECRET` env var — Vercel automatically sends it as the request's Authorization header
+once set, so no other wiring is needed.
+
+Dumps `styles`, `skus`, `listings`, `style_costing_items`, `role_permissions`, `import_history`,
+and `audit_log` (queried in parallel via `Promise.all`, to comfortably clear the Hobby plan's
+10-second cron timeout) into one JSON bundle, uploads it to a new private Supabase Storage bucket
+(migration `0014_add_backups_bucket.sql`), and logs an "Automated backup created" entry to the
+Audit Trail via the existing `writeAudit()` helper — no new UI needed for visibility.
+`profiles`/`invites` are exported as a count only, not full rows, so a leaked backup file doesn't
+also leak every teammate's name/email.
+
+**This is an interim storage location, not the final one** — the user explicitly said where it
+should ultimately live is still to be decided. Everything above already produces a single
+portable JSON file; only the final `supabaseAdmin.storage.from('backups').upload(...)` call in
+`api/backup.js` needs to change once an external destination (email, Drive, S3, etc.) is chosen.
+Storing it back in Supabase Storage today protects against a corrupted or accidentally-deleted
+row, but *not* against losing the Supabase account itself — worth remembering that's still an
+open gap until it moves off-platform.
+
 ## Recent work (most recent first, from git log)
 
 - Verified single Vercel production deployment
@@ -203,8 +269,18 @@ in `isNewSku()` / `skuRemainingItems()`, right above `renderReports()`.
 ## Known open items / things to revisit
 
 - Google sign-in was removed from the login UI — intentionally deferred, not implemented.
-- No other outstanding TODOs known as of this note; check `git log` and `git status`
-  for anything newer than the entries above.
+- Settings → Security's Session Timeout and IP Allowlist fields are still fake — no backend,
+  "Save changes" just shows a toast. Same issue 2FA had until this pass; not fixed yet.
+- Settings → Integrations' "Google Drive — images & exports synced automatically" claim is still
+  false — no real sync exists, same category of issue as the old 2FA toggle.
+- Backup destination is still Supabase Storage (interim) — swap `api/backup.js`'s upload step for
+  an external destination once one is chosen. See "Automated weekly backup" above.
+- 2FA required-for-someone-already-logged-in doesn't redirect them into enrollment live — they
+  hit a 401 until they log out and back in. See "Real two-factor authentication" above.
+- Full-site audit findings not covered by the above (data completeness gaps, Reports'
+  "Costing Pending" not reflecting the real Costing module, Roles & Permissions' off-by-one
+  counter) are tracked in the PMOS Inspection Report artifact shared 20 Aug 2026, not duplicated
+  here — the counter bug specifically is still unfixed as of this note.
 
 ## Working-directory note (why this file exists)
 

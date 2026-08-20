@@ -45,6 +45,8 @@ In the Supabase dashboard, open **SQL Editor**, paste and run each file from
 13. `0013_add_costing_approval.sql` — adds `styles.costing_status` (`draft`/`approved`) for the
     Founder-only costing approval workflow. Plain check constraint, not an enum — no ordering
     restriction with other migrations.
+14. `0014_add_backups_bucket.sql` — creates the private `backups` bucket used by the weekly
+    automated backup (`api/backup.js`).
 
 ## 3. Wire up the real Supabase URL/anon key in the frontend
 
@@ -61,8 +63,12 @@ Copy `.env.example` to `.env.local` and fill in:
 - `ANTHROPIC_API_KEY` — from console.anthropic.com, powers the Stitch page. Every other page
   works fine without it; Stitch will just return a clear "not configured yet" error until it's set.
 - `SITE_URL` — `http://localhost:3000` for local dev; your real Vercel URL once deployed
+- `CRON_SECRET` — any long random string. Protects `/api/backup.js` (the weekly automated
+  backup) from being triggered or read by anyone but Vercel's own cron dispatcher — Vercel
+  automatically sends it as `Authorization: Bearer <value>` on the cron-triggered request once
+  this is set, no other wiring needed. The schedule itself lives in `vercel.json`'s `crons` entry.
 
-In Vercel (once the project exists, see step 8), set all four the same way under **Project
+In Vercel (once the project exists, see step 8), set all five the same way under **Project
 Settings → Environment Variables** (Production + Preview scopes).
 
 ## 5. Create the first Founder user
@@ -114,7 +120,7 @@ git push -u origin main
 ```
 
 In Vercel: **Add New → Project → Import** the GitHub repo. Vercel auto-detects the `/api`
-functions and serves `/public` as static files — no build command needed. Add all four env vars
+functions and serves `/public` as static files — no build command needed. Add all five env vars
 from step 4 before the first deploy.
 
 ## 9. Smoke test
@@ -140,6 +146,21 @@ from step 4 before the first deploy.
   Import History and the new row shows up on the Styles/Listings/EAN page as appropriate.
 - Open Audit Trail (after logging back in, so it re-fetches) and confirm the actions above are
   all logged with the right actor name.
+
+**Two-factor authentication**
+- Settings → Security → Enable 2FA on your own account, scan the QR code with an authenticator
+  app, confirm the code — status should flip to "2FA is enabled." Log out and back in, confirm
+  you're now asked for a code before the app loads.
+- As Founder, edit a user and check "Require 2FA on login for this user," save, then have that
+  user log in (or simulate by clearing their enrolled factor) — confirm they're forced into the
+  QR setup screen before they can reach the app, not just shown a toggle that does nothing.
+
+**Backups**
+- `/api/backup` won't run for you directly (it 401s without the right `CRON_SECRET` header) — the
+  real test is waiting for the first Sunday-3am-UTC cron run, then checking **Storage → backups**
+  in the Supabase dashboard for a new `backup-YYYY-MM-DD-*.json` file, and Audit Trail for an
+  "Automated backup created" entry. To test sooner, `curl` the endpoint yourself with
+  `Authorization: Bearer <your CRON_SECRET>`.
 
 **Stitch**
 - Ask "how many active styles do we have?" and confirm the number matches the Dashboard stat

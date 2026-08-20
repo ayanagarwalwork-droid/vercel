@@ -1107,6 +1107,50 @@
   </div>
 </div>
 
+<!-- ═══ TWO-FACTOR AUTHENTICATION (challenge or first-time enroll) ═════════ -->
+<div id="mfaPage" style="display:none">
+  <div class="login-split">
+    <div class="login-left">
+      <div>
+        <img class="aoba-logo ll-logo-img" alt="aoba">
+        <div class="ll-sub">Product Master OS</div>
+      </div>
+      <div>
+        <div class="ll-palette">
+          <span style="background:#F096FF"></span>
+          <span style="background:#FF8B36"></span>
+          <span style="background:#A8F42C"></span>
+          <span style="background:#FFE734"></span>
+          <span style="background:rgba(255,255,255,0.15)"></span>
+        </div>
+        <p class="ll-tagline">Every stitch,<br>every size,<br>every sale.</p>
+      </div>
+      <div class="ll-foot">Internal catalog control — AOBA team only.</div>
+    </div>
+    <div class="login-right">
+      <div class="login-box">
+    <img class="aoba-logo login-logo-img" alt="aoba">
+    <div class="login-sub">Product Master OS</div>
+    <div class="login-heading" id="mfaHeading">Enter your code</div>
+    <p class="login-hint" id="mfaHint">Open your authenticator app and enter the 6-digit code for AOBA PMOS.</p>
+    <div id="mfaQrWrap" style="display:none;text-align:center;margin-bottom:16px">
+      <div id="mfaQr"></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Can't scan it? Enter this key manually:<br><span id="mfaSecret" style="font-family:monospace;word-break:break-all"></span></div>
+    </div>
+    <div class="field">
+      <label>6-digit code</label>
+      <input type="text" id="mfaCode" placeholder="000000" inputmode="numeric" maxlength="6" autocomplete="one-time-code" />
+    </div>
+    <button class="btn-primary" onclick="submitMfaCode()">Verify</button>
+    <div style="text-align:center;margin-top:12px">
+      <a href="#" onclick="cancelMfaFlow();return false" style="font-size:12px;color:var(--text3);text-decoration:underline">Cancel and sign out</a>
+    </div>
+    <div class="login-error" id="mfaError"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ SET PASSWORD (first login after an invite) ═════════════════════════ -->
 <div id="setPasswordPage" style="display:none">
   <div class="login-split">
@@ -1927,11 +1971,26 @@
             <!-- Security -->
             <div id="settings-security" class="settings-section">
               <div class="settings-card">
-                <div class="settings-card-title">Security</div>
+                <div class="settings-card-title">Two-Factor Authentication</div>
                 <div class="settings-row">
-                  <div><div class="settings-row-label">Require 2FA for Founder &amp; Admin</div><div class="settings-row-sub">Enforced for all users with elevated roles</div></div>
-                  <label class="settings-toggle" onclick="toggleSetting(this)"><input type="checkbox" checked><div class="settings-toggle-track on"></div><div class="settings-toggle-thumb on"></div></label>
+                  <div><div class="settings-row-label" id="mfaStatusLabel">Checking your account…</div><div class="settings-row-sub">Applies to your own login only — an Admin/Founder requires it for someone else from User Management.</div></div>
+                  <button class="settings-save-btn" id="mfaToggleBtn" style="width:auto;padding:8px 16px;display:none" onclick="toggleMyMfa()"></button>
                 </div>
+                <div id="mfaEnrollInline" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+                  <div style="text-align:center;margin-bottom:12px">
+                    <div id="mfaInlineQr"></div>
+                    <div style="font-size:11px;color:var(--text3);margin-top:8px">Can't scan it? Enter this key manually:<br><span id="mfaInlineSecret" style="font-family:monospace;word-break:break-all"></span></div>
+                  </div>
+                  <div class="field" style="margin-bottom:10px;max-width:160px">
+                    <label>6-digit code</label>
+                    <input type="text" id="mfaInlineCode" placeholder="000000" inputmode="numeric" maxlength="6" />
+                  </div>
+                  <button class="settings-save-btn" style="width:auto;padding:8px 16px" onclick="confirmMyMfaEnroll()">Confirm &amp; enable</button>
+                  <div class="login-error" id="mfaInlineError" style="margin-top:8px"></div>
+                </div>
+              </div>
+              <div class="settings-card" style="margin-top:16px">
+                <div class="settings-card-title">Session</div>
                 <div class="settings-row">
                   <div><div class="settings-row-label">Session timeout</div></div>
                   <select class="settings-select"><option>4 hours</option><option>1 hour</option><option>30 minutes</option><option>24 hours</option><option>Never</option></select>
@@ -1941,7 +2000,7 @@
                   <input class="settings-input" placeholder="e.g. 103.21.0.0, 192.168.1.1" style="width:240px" />
                 </div>
               </div>
-              <button class="settings-save-btn" onclick="toast('Security settings saved.','success')">Save changes</button>
+              <button class="settings-save-btn" onclick="toast('Session settings saved.','success')">Save changes</button>
             </div>
             <!-- Integrations -->
             <div id="settings-integrations" class="settings-section">
@@ -2933,6 +2992,111 @@ async function doLogin() {
   // completeLogin() runs from the onAuthStateChange listener below.
 }
 
+// ── TWO-FACTOR AUTHENTICATION (real Supabase Auth MFA, not just a toggle) ──
+// profiles.two_fa (set per-user from User Management) is the "does this
+// account require it" policy. Supabase's own Authenticator Assurance Level
+// (AAL) tracks whether *this session* has actually completed a challenge —
+// api/_lib/auth.js checks the same AAL claim server-side, so this isn't just
+// a client-side gate a direct API call could skip past.
+let _mfaFactorId = null;
+
+// Runs right after password sign-in, before completeLogin(). Returns true if
+// the session is already fully authenticated (or 2FA isn't required), false
+// if it's now showing a challenge/enroll screen and waiting on the user.
+async function checkMfaGate() {
+  const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal.currentLevel === 'aal2') return true;
+
+  if (aal.nextLevel === 'aal2') {
+    // A factor is already enrolled; this session just hasn't verified it yet.
+    const { data: factors } = await sb.auth.mfa.listFactors();
+    _mfaFactorId = factors?.totp?.[0]?.id || null;
+    showMfaPage('challenge');
+    return false;
+  }
+
+  // No factor enrolled — only force enrollment if this specific account
+  // requires it. Reachable at aal1 since /api/auth/session omits the module
+  // argument (see api/_lib/auth.js).
+  const session = await api.get('/api/auth/session');
+  if (session.profile?.two_fa) {
+    const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp' });
+    if (error) {
+      showMfaPage('challenge');
+      document.getElementById('mfaError').textContent = 'Could not start 2FA setup: ' + error.message;
+      return false;
+    }
+    _mfaFactorId = data.id;
+    showMfaPage('enroll', data.totp);
+    return false;
+  }
+  return true;
+}
+
+// Supabase's totp.qr_code is a data: URI carrying raw (unencoded) SVG markup
+// full of its own double quotes — interpolating it into `<img src="...">` as
+// an HTML string lets those quotes break out of the src attribute early,
+// leaving the tail of the URI as stray visible text. Setting .src as a DOM
+// property instead of parsing it as HTML sidesteps that entirely.
+function renderMfaQr(containerId, dataUri, size) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = dataUri;
+  img.width = size;
+  img.height = size;
+  img.alt = '2FA QR code';
+  container.appendChild(img);
+}
+
+function showMfaPage(mode, totp) {
+  document.getElementById('authChecking').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('mfaPage').style.display = 'flex';
+  document.getElementById('mfaError').textContent = '';
+  document.getElementById('mfaCode').value = '';
+  const qrWrap = document.getElementById('mfaQrWrap');
+  if (mode === 'enroll') {
+    document.getElementById('mfaHeading').textContent = 'Set up two-factor authentication';
+    document.getElementById('mfaHint').textContent = "Your account requires 2FA. Scan this with an authenticator app (Google Authenticator, Authy, etc.), then enter the 6-digit code it shows.";
+    renderMfaQr('mfaQr', totp.qr_code, 180);
+    document.getElementById('mfaSecret').textContent = totp.secret;
+    qrWrap.style.display = 'block';
+  } else {
+    document.getElementById('mfaHeading').textContent = 'Enter your code';
+    document.getElementById('mfaHint').textContent = 'Open your authenticator app and enter the 6-digit code for AOBA PMOS.';
+    qrWrap.style.display = 'none';
+  }
+  document.getElementById('mfaCode').focus();
+}
+
+async function submitMfaCode() {
+  const code = document.getElementById('mfaCode').value.trim();
+  const err = document.getElementById('mfaError');
+  if (!/^\d{6}$/.test(code)) { err.textContent = 'Enter the 6-digit code.'; return; }
+  if (!_mfaFactorId) { err.textContent = 'Something went wrong — please sign in again.'; return; }
+
+  _completingLogin = true;
+  try {
+    const { data: ch, error: chErr } = await sb.auth.mfa.challenge({ factorId: _mfaFactorId });
+    if (chErr) { err.textContent = chErr.message; return; }
+    const { error: vErr } = await sb.auth.mfa.verify({ factorId: _mfaFactorId, challengeId: ch.id, code });
+    if (vErr) { err.textContent = 'Incorrect code. Try again.'; return; }
+
+    document.getElementById('mfaPage').style.display = 'none';
+    await completeLogin();
+  } finally {
+    _completingLogin = false;
+  }
+}
+
+async function cancelMfaFlow() {
+  await sb.auth.signOut();
+  _mfaFactorId = null;
+  document.getElementById('mfaPage').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+}
+
 // Sends a reset link to whatever email is in the login field (prompts if
 // empty). The link lands back here as a PASSWORD_RECOVERY event — same
 // flow as accepting an invite, handled by the listener below.
@@ -2960,6 +3124,7 @@ async function doLogout() {
   document.getElementById('appShell').style.display  = 'none';
   document.getElementById('authChecking').style.display = 'none';
   document.getElementById('setPasswordPage').style.display = 'none';
+  document.getElementById('mfaPage').style.display = 'none';
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPass').value  = '';
@@ -2981,7 +3146,8 @@ async function submitNewPassword() {
   document.getElementById('setPasswordPage').style.display = 'none';
   document.getElementById('authChecking').style.display = 'flex';
   try {
-    await completeLogin();
+    const ok = await checkMfaGate();
+    if (ok) await completeLogin();
   } catch (e) {
     document.getElementById('authChecking').style.display = 'none';
     document.getElementById('loginPage').style.display = 'flex';
@@ -3011,6 +3177,7 @@ sb.auth.onAuthStateChange((event, session) => {
   }
 
   if (document.getElementById('setPasswordPage').style.display === 'flex') return; // mid set-password flow
+  if (document.getElementById('mfaPage').style.display === 'flex') return; // mid 2FA challenge/enroll flow
 
   if (!session) {
     document.getElementById('authChecking').style.display = 'none';
@@ -3023,10 +3190,14 @@ sb.auth.onAuthStateChange((event, session) => {
   if (document.getElementById('appShell').style.display === 'flex') return; // already in the app (e.g. a background token refresh)
 
   _completingLogin = true;
-  completeLogin()
+  (async () => {
+    const ok = await checkMfaGate();
+    if (ok) await completeLogin();
+  })()
     .catch(e => {
       document.getElementById('authChecking').style.display = 'none';
       document.getElementById('loginPage').style.display = 'flex';
+      document.getElementById('mfaPage').style.display = 'none';
       document.getElementById('loginError').textContent =
         e.message || 'Could not load your account. If you were just invited, contact an admin.';
       sb.auth.signOut();
@@ -4962,6 +5133,70 @@ function switchSettingsNav(section, el) {
   el.classList.add('active');
   const sec = document.getElementById('settings-' + section);
   if (sec) sec.classList.add('active');
+  if (section === 'security') renderMfaSettingsCard();
+}
+
+// Self-service 2FA for the logged-in user's own account — separate from the
+// "Require 2FA on login for this user" policy flag on User Management
+// (profiles.two_fa), which forces enrollment at next login rather than
+// letting someone turn it on voluntarily right now.
+async function renderMfaSettingsCard() {
+  const label = document.getElementById('mfaStatusLabel');
+  const btn = document.getElementById('mfaToggleBtn');
+  document.getElementById('mfaEnrollInline').style.display = 'none';
+  label.textContent = 'Checking your account…';
+  btn.style.display = 'none';
+
+  const { data: factors } = await sb.auth.mfa.listFactors();
+  const factor = factors?.totp?.[0];
+  if (factor) {
+    label.textContent = '2FA is enabled on your account';
+    btn.textContent = 'Disable';
+    btn.dataset.action = 'disable';
+    btn.dataset.factorId = factor.id;
+  } else {
+    label.textContent = '2FA is not enabled on your account';
+    btn.textContent = 'Enable 2FA';
+    btn.dataset.action = 'enable';
+  }
+  btn.style.display = '';
+}
+
+async function toggleMyMfa() {
+  const btn = document.getElementById('mfaToggleBtn');
+  if (btn.dataset.action === 'disable') {
+    if (!confirm('Turn off two-factor authentication for your account?')) return;
+    const { error } = await sb.auth.mfa.unenroll({ factorId: btn.dataset.factorId });
+    if (error) { toast(error.message, 'error'); return; }
+    toast('Two-factor authentication disabled.', 'success');
+    renderMfaSettingsCard();
+    return;
+  }
+  const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp' });
+  if (error) { toast(error.message, 'error'); return; }
+  renderMfaQr('mfaInlineQr', data.totp.qr_code, 160);
+  document.getElementById('mfaInlineSecret').textContent = data.totp.secret;
+  document.getElementById('mfaInlineCode').value = '';
+  document.getElementById('mfaInlineError').textContent = '';
+  document.getElementById('mfaEnrollInline').dataset.factorId = data.id;
+  document.getElementById('mfaEnrollInline').style.display = 'block';
+}
+
+async function confirmMyMfaEnroll() {
+  const wrap = document.getElementById('mfaEnrollInline');
+  const factorId = wrap.dataset.factorId;
+  const code = document.getElementById('mfaInlineCode').value.trim();
+  const err = document.getElementById('mfaInlineError');
+  if (!/^\d{6}$/.test(code)) { err.textContent = 'Enter the 6-digit code.'; return; }
+
+  const { data: ch, error: chErr } = await sb.auth.mfa.challenge({ factorId });
+  if (chErr) { err.textContent = chErr.message; return; }
+  const { error: vErr } = await sb.auth.mfa.verify({ factorId, challengeId: ch.id, code });
+  if (vErr) { err.textContent = 'Incorrect code. Try again.'; return; }
+
+  wrap.style.display = 'none';
+  toast('Two-factor authentication enabled.', 'success');
+  renderMfaSettingsCard();
 }
 
 function toggleSetting(label) {

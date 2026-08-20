@@ -14,6 +14,22 @@ class HttpError extends Error {
 
 const RANK = { none: 0, view: 1, edit: 2 };
 
+// The access token's payload carries an `aal` (Authenticator Assurance
+// Level) claim Supabase Auth sets itself — 'aal2' only appears once the
+// holder has actually completed an MFA challenge with Supabase's own
+// servers, so a client can't forge it by skipping the challenge screen.
+// Decoding it here (no re-verification needed — supabaseAdmin.auth.getUser()
+// above already validated the token's signature and expiry) is what makes
+// two-factor enforcement real rather than a client-side-only gate.
+function decodeAal(token) {
+  try {
+    const payload = token.split('.')[1];
+    return JSON.parse(Buffer.from(payload, 'base64').toString('utf8')).aal;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Verifies the bearer token, loads the caller's profile, and (if a module is
  * given) checks their role has at least `minLevel` on that module.
@@ -42,6 +58,16 @@ async function requireModulePermission(req, module, minLevel) {
   if (profile.status !== 'active') throw new HttpError(403, 'This account is inactive.');
 
   if (!module) return { user, profile, level: null };
+
+  // Accounts flagged two_fa=true must have completed an MFA challenge THIS
+  // session, not just have a factor enrolled — otherwise a token minted
+  // before enrollment (or before completing the challenge) would still work.
+  // GET /api/auth/session (module omitted, handled above) stays reachable at
+  // aal1 regardless, since the frontend needs it to even know a challenge is
+  // required in the first place.
+  if (profile.two_fa && decodeAal(token) !== 'aal2') {
+    throw new HttpError(401, 'Two-factor authentication required.');
+  }
 
   const { data: perm, error: permErr } = await supabaseAdmin
     .from('role_permissions')
