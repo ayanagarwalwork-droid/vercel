@@ -304,9 +304,16 @@ design was and where to pick it back up.
    `styles.mrp`, so it shows up on the Styles page immediately. Multiplier = MRP ÷ Total Cost,
    computed live, shows "—" until both are non-zero.
 4. **Reports: search SKUs by an explicit date range.** On the Old vs New SKU report, two date
-   inputs sit below the existing rolling-window dropdown — when both are filled they override the
-   New/Old bucket entirely (a separate "created between these two dates" search, not a refinement
-   of it). Reuses the same per-SKU completion table already built for that report.
+   inputs sit alongside the rolling-window dropdown (same single row, not stacked — see layout
+   note below) — when both are filled they override the New/Old bucket entirely (a separate
+   "created between these two dates" search, not a refinement of it). Reuses the same per-SKU
+   completion table already built for that report.
+
+**Two follow-up tweaks after this shipped:** Reports now **defaults to the "New SKUs" view**
+(`activeReportTab = 'sku-progress'`) instead of "Missing EAN" on first load. And the controls
+above the SKU table were cluttered — the day-window dropdown and the date-range picker used to
+stack on two separate lines; they're now one combined row (`or by exact date created:` sits
+between them), same information, less vertical stacking.
 
 All were tested against real production data (read-only, via a local proxy that serves edited
 frontend files but forwards `/api/*` to the live backend — meaning backend-only changes couldn't

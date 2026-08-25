@@ -3719,7 +3719,7 @@ function filterListingsCat(code) {
 }
 
 // ── REPORTS ───────────────────────────────────────────────────────────────
-let activeReportTab = 'missing-ean';
+let activeReportTab = 'sku-progress';
 const REPORT_TABS = [
   { id:'missing-ean',     label:'Missing EAN' },
   { id:'missing-images',  label:'Missing Images' },
@@ -3946,21 +3946,23 @@ function renderReportContent(tab, el) {
   }
   if (tab === 'sku-progress') {
     const isNew = skuAgeBucket !== 'old';
-    const windowSel = isNew ? `<select class="filter-select" style="margin-bottom:14px" onchange="switchSkuAgeWindow(this.value)">
-      ${[7,14,30,60,90].map(d => `<option value="${d}"${d===skuAgeWindowDays?' selected':''}>New = created in last ${d} days</option>`).join('')}
-    </select>` : '';
-
     const cell = (ok) => ok ? `<span class="lst-tag lst-live">Done</span>` : `<span class="lst-tag lst-pending">Missing</span>`;
 
     // An explicit date range, when both ends are set, overrides the New/Old
     // age-bucket entirely rather than filtering within it — it's a separate
     // "find SKUs created between these two dates" search, not a refinement
-    // of New vs Old.
+    // of New vs Old. Rolling window and exact date range are two ways to
+    // pick the same kind of thing, so they live in one compact row instead
+    // of stacked on separate lines.
     const hasDateRange = skuDateFrom && skuDateTo;
+    const windowOpt = isNew ? `<select class="filter-select" style="width:auto" onchange="switchSkuAgeWindow(this.value)">
+      ${[7,14,30,60,90].map(d => `<option value="${d}"${d===skuAgeWindowDays?' selected':''}>New = last ${d} days</option>`).join('')}
+    </select>` : '';
     const dateRangeSel = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-      <span style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">Or search by date created</span>
+      ${windowOpt}
+      <span style="font-size:11px;color:var(--text3)">${isNew ? 'or ' : ''}by exact date created:</span>
       <input type="date" class="filter-select" style="width:auto" value="${skuDateFrom}" onchange="switchSkuDateRange(this.value, skuDateTo)">
-      <span style="font-size:11px;color:var(--text3)">to</span>
+      <span style="font-size:11px;color:var(--text3)">–</span>
       <input type="date" class="filter-select" style="width:auto" value="${skuDateTo}" onchange="switchSkuDateRange(skuDateFrom, this.value)">
       ${hasDateRange ? `<button class="tbl-btn" onclick="clearSkuDateRange()">Clear</button>` : ''}
     </div>`;
@@ -3991,8 +3993,8 @@ function renderReportContent(tab, el) {
     }
 
     const heading = hasDateRange ? `SKUs created ${skuDateFrom} to ${skuDateTo}` : `${isNew ? 'New' : 'Old'} SKUs`;
-    el.innerHTML = info(`${heading} (${list.length}) — per-SKU checklist of what's completed and what's still remaining.`) +
-      windowSel + dateRangeSel + body;
+    el.innerHTML = info(`${heading} (${list.length}) — completed vs. remaining, per SKU.`) +
+      dateRangeSel + body;
     return;
   }
 }
