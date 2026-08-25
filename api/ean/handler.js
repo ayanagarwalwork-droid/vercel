@@ -8,6 +8,7 @@
 const { requireModulePermission, withErrorHandling, HttpError } = require('../_lib/auth');
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
 const { writeAudit } = require('../_lib/audit');
+const { fetchAll } = require('../_lib/fetchAll');
 
 module.exports = withErrorHandling(async (req, res) => {
   const params = req.query.path ? [req.query.path] : [];
@@ -17,11 +18,11 @@ module.exports = withErrorHandling(async (req, res) => {
     if (req.method !== 'GET') throw new HttpError(405, 'Method not allowed.');
     await requireModulePermission(req, 'EAN / Barcode', 'view');
 
-    const { data, error } = await supabaseAdmin
-      .from('skus')
-      .select('sku, style_code, color, size, ean, ean_status, created_at, styles(name, category)')
-      .order('sku', { ascending: true });
-    if (error) throw new HttpError(500, error.message);
+    const data = await fetchAll(() =>
+      supabaseAdmin
+        .from('skus')
+        .select('sku, style_code, color, size, ean, ean_status, created_at, styles(name, category)')
+        .order('sku', { ascending: true }));
 
     const shaped = (data || []).map((row) => ({
       sku: row.sku, style_code: row.style_code, color: row.color, size: row.size,

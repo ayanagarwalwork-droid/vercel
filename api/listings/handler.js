@@ -9,6 +9,7 @@
 const { requireModulePermission, withErrorHandling, HttpError } = require('../_lib/auth');
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
 const { writeAudit } = require('../_lib/audit');
+const { fetchAll } = require('../_lib/fetchAll');
 
 module.exports = withErrorHandling(async (req, res) => {
   // vercel.json rewrites /api/listings(/*) here, forwarding the sub-path
@@ -20,9 +21,8 @@ module.exports = withErrorHandling(async (req, res) => {
   if (params.length === 0) {
     if (req.method === 'GET') {
       await requireModulePermission(req, 'Listings', 'view');
-      const { data, error } = await supabaseAdmin
-        .from('listings').select('*').order('created_at', { ascending: true });
-      if (error) throw new HttpError(500, error.message);
+      const data = await fetchAll(() =>
+        supabaseAdmin.from('listings').select('*').order('created_at', { ascending: true }));
       return res.status(200).json({ data });
     }
 

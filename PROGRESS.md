@@ -4,19 +4,29 @@ Internal product/catalog management tool for AOBA. Read this first in any new se
 to pick up where things left off — chat history does not persist across sessions
 started from a different working directory, so this file is the source of truth.
 
-## 🔴 CRITICAL — silent 1000-row data cap, actively hiding data right now
+## Fixed — silent 1000-row data cap that was hiding most of the catalog
 
 Discovered 2026-08-25 while testing unrelated features, after the Founder's 2026-08-24 bulk
 import pushed the catalog well past 1000 styles / SKUs. Every `GET` that fetches a full table with
-no `.limit()` (`/api/styles`, `/api/ean` i.e. `skus`, and likely `/api/listings`,
-`/api/styles/costing`, `/api/audit` once they grow too) is silently capped at **1000 rows by
-PostgREST's own default** — not something in this app's code, and not something a bare
-`.select('*')` with no `.limit()` call overrides. `STYLES_DATA` and `SKUS_DATA` on the frontend
-are confirmed truncated at exactly 1000 right now, ordered oldest-first (`styles`) or
-alphabetically (`skus`) — meaning most of the catalog is **currently invisible** on Styles,
-EAN/Barcode, Reports, and Costing, with no error or warning anywhere. Not yet fixed — needs real
-pagination (or chunked fetching) added to every affected endpoint + `loadAllData()`. Flagged to
-the user 2026-08-25, priority still to be decided.
+no `.limit()` is silently capped at **1000 rows by PostgREST's own default** — not something in
+this app's code, and not something a bare `.select('*')` with no `.limit()` call overrides.
+`STYLES_DATA` and `SKUS_DATA` on the frontend were confirmed truncated at exactly 1000, ordered
+oldest-first (`styles`) or alphabetically (`skus`) — meaning most of the catalog was silently
+invisible on Styles, EAN/Barcode, Reports, and Costing, with no error anywhere.
+
+Fixed with a shared `fetchAll()` helper (`api/_lib/fetchAll.js`) that loops with `.range()` until
+a page comes back short of 1000, so it correctly retrieves everything no matter how large a table
+grows — no Supabase project setting needed, purely a code-level fix. Applied to every affected
+`GET`: `/api/styles`, `/api/styles/costing`, `/api/ean`, `/api/listings`, `/api/import/history`.
+`/api/audit` was deliberately left alone — it already does real range-based pagination with a
+sane default (500, capped at 2000), which is the right design for an activity feed; the bug here
+was specifically about tables the app needs to load *completely* to work correctly.
+
+**Known scaling limit to watch, not fixed:** `fetchAll()` makes one sequential round-trip per
+1000 rows within a single serverless function call, which stays comfortably under Vercel Hobby's
+timeout at the catalog's current size, but would eventually need a different approach (real
+UI-level pagination, caching, a materialized view) if any one table grows into the tens of
+thousands of rows.
 
 ## Stack
 

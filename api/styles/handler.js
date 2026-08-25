@@ -17,6 +17,7 @@ const { requireModulePermission, withErrorHandling, HttpError } = require('../_l
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
 const { writeAudit } = require('../_lib/audit');
 const { syncSkusForStyle } = require('../_lib/skus');
+const { fetchAll } = require('../_lib/fetchAll');
 
 module.exports = withErrorHandling(async (req, res) => {
   // vercel.json rewrites /api/styles(/*) here, forwarding the sub-path (if
@@ -28,9 +29,8 @@ module.exports = withErrorHandling(async (req, res) => {
   if (params.length === 0) {
     if (req.method === 'GET') {
       await requireModulePermission(req, 'Styles', 'view');
-      const { data, error } = await supabaseAdmin
-        .from('styles').select('*').order('added_at', { ascending: true });
-      if (error) throw new HttpError(500, error.message);
+      const data = await fetchAll(() =>
+        supabaseAdmin.from('styles').select('*').order('added_at', { ascending: true }));
       return res.status(200).json({ data });
     }
 
@@ -95,9 +95,8 @@ module.exports = withErrorHandling(async (req, res) => {
   if (params.length === 1 && params[0] === 'costing') {
     if (req.method === 'GET') {
       await requireModulePermission(req, 'Costing', 'view');
-      const { data, error } = await supabaseAdmin
-        .from('style_costing_items').select('*').order('style_code').order('sort_order');
-      if (error) throw new HttpError(500, error.message);
+      const data = await fetchAll(() =>
+        supabaseAdmin.from('style_costing_items').select('*').order('style_code').order('sort_order'));
       return res.status(200).json({ data });
     }
 

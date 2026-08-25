@@ -13,6 +13,7 @@ const { requireModulePermission, withErrorHandling, HttpError } = require('../_l
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
 const { writeAudit } = require('../_lib/audit');
 const { syncSkusForStyle } = require('../_lib/skus');
+const { fetchAll } = require('../_lib/fetchAll');
 
 // Google Drive "share" links (drive.google.com/file/d/ID/view or
 // drive.google.com/open?id=ID) render an HTML viewer page, not an image, so
@@ -268,14 +269,11 @@ module.exports = withErrorHandling(async (req, res) => {
   if (route === 'history') {
     if (req.method !== 'GET') throw new HttpError(405, 'Method not allowed.');
     await requireModulePermission(req, 'Import', 'view');
-    // No .limit() -- import runs are never deleted, and the whole point of
-    // this request was that history should stay visible for all time, not
-    // just the most recent 200. Supabase's own PostgREST layer still caps a
-    // single request at 1000 rows; revisit with real pagination long before
-    // any real team gets there.
-    const { data, error } = await supabaseAdmin
-      .from('import_history').select('*').order('created_at', { ascending: false });
-    if (error) throw new HttpError(500, error.message);
+    // fetchAll pages past PostgREST's 1000-row-per-request cap -- import
+    // runs are never deleted, and the whole point of removing the old
+    // hardcoded 200 limit was that history should stay visible for all time.
+    const data = await fetchAll(() =>
+      supabaseAdmin.from('import_history').select('*').order('created_at', { ascending: false }));
     return res.status(200).json({ data });
   }
 
