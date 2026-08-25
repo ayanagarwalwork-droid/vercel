@@ -2244,46 +2244,77 @@
       <div class="modal-title">New Style</div>
       <button class="modal-close" onclick="closeNewStyle()">✕</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;margin-bottom:18px">
-      <div class="field" style="margin-bottom:0">
-        <label>Category</label>
-        <select id="nsCategory" onchange="updateStyleCode()">
-          <option value="">— Select category —</option>
+    <div style="display:flex;gap:8px;margin-bottom:18px">
+      <button type="button" class="btn btn-outline ns-mode-btn" id="nsModeNewBtn" style="flex:1;font-size:12px" onclick="setNsMode('new')">🆕 New Design</button>
+      <button type="button" class="btn btn-outline ns-mode-btn" id="nsModeColorBtn" style="flex:1;font-size:12px" onclick="setNsMode('color')">🎨 New Color of Existing Style</button>
+    </div>
+
+    <div id="nsNewDesignFields">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;margin-bottom:18px">
+        <div class="field" style="margin-bottom:0">
+          <label>Category</label>
+          <select id="nsCategory" onchange="updateStyleCode()">
+            <option value="">— Select category —</option>
+          </select>
+        </div>
+        <div id="nsGroupInfo" class="group-info-badge" style="display:none;margin-top:22px"></div>
+      </div>
+      <div class="field">
+        <label>Style Name</label>
+        <input type="text" id="nsName" placeholder="e.g. Printed Floral Lace Set" />
+      </div>
+      <div style="display:flex;gap:16px">
+        <div class="field" style="flex:1">
+          <label>Colors</label>
+          <div class="color-picker-wrap">
+            <div class="color-picker-chips" id="nsColorChips"></div>
+            <button type="button" class="color-add-btn" onclick="addNsColor()">+ Add Color</button>
+          </div>
+        </div>
+        <div class="field" style="flex:1">
+          <label>Sizes</label>
+          <div class="size-picker-wrap" id="nsSizePicker">
+            <label class="size-cb-label"><input type="checkbox" value="S"   onchange="updateSkuPreview()"> S</label>
+            <label class="size-cb-label"><input type="checkbox" value="M"   onchange="updateSkuPreview()"> M</label>
+            <label class="size-cb-label"><input type="checkbox" value="L"   onchange="updateSkuPreview()"> L</label>
+            <label class="size-cb-label"><input type="checkbox" value="XL"  onchange="updateSkuPreview()"> XL</label>
+            <label class="size-cb-label"><input type="checkbox" value="XXL" onchange="updateSkuPreview()"> XXL</label>
+            <label class="size-cb-label"><input type="checkbox" value="ONE" onchange="updateSkuPreview()"> ONE</label>
+          </div>
+        </div>
+      </div>
+      <div class="ns-code-row" id="nsCodeRow" style="display:none">
+        <div>
+          <div class="ns-code-label">Generated Style Code</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Assigned by the SKU Engine</div>
+        </div>
+        <div class="ns-code-val" id="nsCodeVal">—</div>
+      </div>
+    </div>
+
+    <div id="nsExistingPatternFields" style="display:none">
+      <div class="field">
+        <label>Existing Style</label>
+        <select id="nsExistingStyle" onchange="onNsExistingStyleChange()">
+          <option value="">— Select the style this is a new color of —</option>
         </select>
       </div>
-      <div id="nsGroupInfo" class="group-info-badge" style="display:none;margin-top:22px"></div>
-    </div>
-    <div class="field">
-      <label>Style Name</label>
-      <input type="text" id="nsName" placeholder="e.g. Printed Floral Lace Set" />
-    </div>
-    <div style="display:flex;gap:16px">
-      <div class="field" style="flex:1">
-        <label>Colors</label>
-        <div class="color-picker-wrap">
-          <div class="color-picker-chips" id="nsColorChips"></div>
-          <button type="button" class="color-add-btn" onclick="addNsColor()">+ Add Color</button>
+      <div id="nsExistingInfo" style="display:none;font-size:12px;color:var(--text2);margin:-6px 0 14px;line-height:1.7">
+        <div>Existing colors: <span id="nsExistingColors" style="font-family:monospace"></span></div>
+        <div>Sizes carried over unchanged: <span id="nsExistingSizes" style="font-family:monospace"></span></div>
+      </div>
+      <div class="field">
+        <label>New Color(s)</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="nsNewColorInput" placeholder="e.g. Navy Blue" style="flex:1;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:13px"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addNsColor();}">
+          <button type="button" class="btn btn-outline" style="font-size:11px;padding:6px 14px" onclick="addNsColor()">+ Add</button>
         </div>
+        <div class="color-picker-chips" id="nsNewColorChips"></div>
       </div>
-      <div class="field" style="flex:1">
-        <label>Sizes</label>
-        <div class="size-picker-wrap" id="nsSizePicker">
-          <label class="size-cb-label"><input type="checkbox" value="S"   onchange="updateSkuPreview()"> S</label>
-          <label class="size-cb-label"><input type="checkbox" value="M"   onchange="updateSkuPreview()"> M</label>
-          <label class="size-cb-label"><input type="checkbox" value="L"   onchange="updateSkuPreview()"> L</label>
-          <label class="size-cb-label"><input type="checkbox" value="XL"  onchange="updateSkuPreview()"> XL</label>
-          <label class="size-cb-label"><input type="checkbox" value="XXL" onchange="updateSkuPreview()"> XXL</label>
-          <label class="size-cb-label"><input type="checkbox" value="ONE" onchange="updateSkuPreview()"> ONE</label>
-        </div>
-      </div>
+      <div class="guide-callout tip" style="margin-top:4px">💡 Same style code, name, MRP and cost price as the existing style — only the color (and its SKUs) is new. To use different pricing per color, create it as a New Design instead.</div>
     </div>
-    <div class="ns-code-row" id="nsCodeRow" style="display:none">
-      <div>
-        <div class="ns-code-label">Generated Style Code</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">Assigned by the SKU Engine</div>
-      </div>
-      <div class="ns-code-val" id="nsCodeVal">—</div>
-    </div>
+
     <div id="nsSkuPreview" style="display:none;margin-top:14px">
       <div class="ns-sku-label">SKUs that will be created</div>
       <div class="ns-sku-chips" id="nsSkuChips"></div>
@@ -2291,7 +2322,7 @@
     <div class="modal-error" id="nsError"></div>
     <div class="modal-foot">
       <button class="btn btn-outline" onclick="closeNewStyle()">Cancel</button>
-      <button class="btn btn-dark" onclick="saveNewStyle()">Create Style</button>
+      <button class="btn btn-dark" onclick="saveNewStyle()" id="nsSaveBtn">Create Style</button>
     </div>
   </div>
 </div>
@@ -2444,6 +2475,13 @@
         <input type="number" id="costOverheadPct" value="15" min="0" step="0.1" oninput="recalcCosting()" style="width:100%;border:none;background:transparent;font-family:var(--font-display);font-size:20px;font-style:italic;color:var(--text);padding:0;outline:none" />
       </div>
       <div class="sd-field"><div class="sd-label">Total Cost</div><div id="costTotalCost" style="font-family:var(--font-display);font-size:20px;font-style:italic;color:var(--accent)">₹0</div></div>
+    </div>
+    <div class="sd-grid" style="margin-top:12px;grid-template-columns:1fr 1fr">
+      <div class="sd-field">
+        <div class="sd-label">MRP (₹) — set by Founder</div>
+        <input type="number" id="costMrp" min="0" step="1" placeholder="0" oninput="recalcCosting()" style="width:100%;border:none;background:transparent;font-family:var(--font-display);font-size:20px;font-style:italic;color:var(--text);padding:0;outline:none" />
+      </div>
+      <div class="sd-field"><div class="sd-label">Multiplier (MRP ÷ Total Cost)</div><div id="costMultiplier" style="font-family:var(--font-display);font-size:20px;font-style:italic">—</div></div>
     </div>
     <div class="modal-error" id="costError"></div>
     <div class="modal-foot">
@@ -3941,8 +3979,23 @@ function renderReportContent(tab, el) {
 
     const cell = (ok) => ok ? `<span class="lst-tag lst-live">Done</span>` : `<span class="lst-tag lst-pending">Missing</span>`;
 
-    const list = SKUS_DATA.filter(s => isNew ? isNewSku(s) : !isNewSku(s));
-    const emptyMsg = isNew ? 'No SKUs created in this window.' : 'Nothing outside the New window yet.';
+    // An explicit date range, when both ends are set, overrides the New/Old
+    // age-bucket entirely rather than filtering within it — it's a separate
+    // "find SKUs created between these two dates" search, not a refinement
+    // of New vs Old.
+    const hasDateRange = skuDateFrom && skuDateTo;
+    const dateRangeSel = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">Or search by date created</span>
+      <input type="date" class="filter-select" style="width:auto" value="${skuDateFrom}" onchange="switchSkuDateRange(this.value, skuDateTo)">
+      <span style="font-size:11px;color:var(--text3)">to</span>
+      <input type="date" class="filter-select" style="width:auto" value="${skuDateTo}" onchange="switchSkuDateRange(skuDateFrom, this.value)">
+      ${hasDateRange ? `<button class="tbl-btn" onclick="clearSkuDateRange()">Clear</button>` : ''}
+    </div>`;
+
+    const list = hasDateRange
+      ? SKUS_DATA.filter(s => s.createdAt && s.createdAt.slice(0,10) >= skuDateFrom && s.createdAt.slice(0,10) <= skuDateTo)
+      : SKUS_DATA.filter(s => isNew ? isNewSku(s) : !isNewSku(s));
+    const emptyMsg = hasDateRange ? 'No SKUs created in that date range.' : (isNew ? 'No SKUs created in this window.' : 'Nothing outside the New window yet.');
 
     let body;
     if (!list.length) {
@@ -3964,11 +4017,17 @@ function renderReportContent(tab, el) {
       body = tbl('<th>AOBA SKU</th><th>Style</th><th>Image</th><th>EAN</th><th>Costing</th><th>Listing</th><th>Remaining</th>', rows);
     }
 
-    el.innerHTML = info(`${isNew ? 'New' : 'Old'} SKUs (${list.length}) — per-SKU checklist of what's completed and what's still remaining.`) +
-      windowSel + body;
+    const heading = hasDateRange ? `SKUs created ${skuDateFrom} to ${skuDateTo}` : `${isNew ? 'New' : 'Old'} SKUs`;
+    el.innerHTML = info(`${heading} (${list.length}) — per-SKU checklist of what's completed and what's still remaining.`) +
+      windowSel + dateRangeSel + body;
     return;
   }
 }
+
+let skuDateFrom = '';
+let skuDateTo = '';
+function switchSkuDateRange(from, to) { skuDateFrom = from || ''; skuDateTo = to || ''; renderReports(); }
+function clearSkuDateRange() { skuDateFrom = ''; skuDateTo = ''; renderReports(); }
 
 // ── ROLES ─────────────────────────────────────────────────────────────────
 function renderRoles() {
@@ -4117,16 +4176,71 @@ function openNewStyle() {
       const grpStr = c.group !== null ? ` (Group ${c.group})` : ' (Standalone)';
       return `<option value="${c.code}">${c.code} — ${c.name}${grpStr}</option>`;
     }).join('');
-  nsColors = ['A'];
-  renderNsColors();
+  const exSel = document.getElementById('nsExistingStyle');
+  exSel.innerHTML = '<option value="">— Select the style this is a new color of —</option>' +
+    STYLES_DATA.slice().sort((a,b) => a.code.localeCompare(b.code))
+      .map(s => `<option value="${s.code}">${s.code} — ${s.name}</option>`).join('');
+  document.getElementById('nsExistingInfo').style.display = 'none';
   document.getElementById('nsName').value = '';
   document.getElementById('nsCodeRow').style.display = 'none';
   document.getElementById('nsSkuPreview').style.display = 'none';
   document.getElementById('nsGroupInfo').style.display = 'none';
   document.getElementById('nsError').textContent = '';
   document.querySelectorAll('#nsSizePicker input').forEach(cb => cb.checked = false);
+  setNsMode('new');
   document.getElementById('newStyleModal').classList.add('open');
   setTimeout(() => document.getElementById('nsCategory').focus(), 120);
+}
+
+// Fork chosen at the top of the New Style modal: a genuinely new pattern
+// (today's full flow — category, name, colors, sizes, new SKU-Engine code)
+// vs. just a new color of a style that already exists (pick the style,
+// add color letters that continue on from its existing ones, everything
+// else — name, MRP, cost price — stays shared with that style).
+let nsMode = 'new';
+let nsExistingStyleColors = [];
+
+function setNsMode(mode) {
+  nsMode = mode;
+  const newBtn = document.getElementById('nsModeNewBtn');
+  const colorBtn = document.getElementById('nsModeColorBtn');
+  newBtn.classList.toggle('btn-dark', mode === 'new');
+  newBtn.classList.toggle('btn-outline', mode !== 'new');
+  colorBtn.classList.toggle('btn-dark', mode === 'color');
+  colorBtn.classList.toggle('btn-outline', mode !== 'color');
+  document.getElementById('nsNewDesignFields').style.display = mode === 'new' ? '' : 'none';
+  document.getElementById('nsExistingPatternFields').style.display = mode === 'color' ? '' : 'none';
+  document.getElementById('nsSaveBtn').textContent = mode === 'new' ? 'Create Style' : 'Add Color';
+  document.getElementById('nsError').textContent = '';
+  resetNsColors();
+}
+
+function onNsExistingStyleChange() {
+  const code = document.getElementById('nsExistingStyle').value;
+  const infoEl = document.getElementById('nsExistingInfo');
+  if (!code) {
+    nsExistingStyleColors = [];
+    infoEl.style.display = 'none';
+    resetNsColors();
+    return;
+  }
+  const s = STYLES_DATA.find(x => x.code === code);
+  nsExistingStyleColors = s?.colors || [];
+  document.getElementById('nsExistingColors').textContent = nsExistingStyleColors.join(', ') || '—';
+  document.getElementById('nsExistingSizes').textContent = (s?.sizes || []).join(', ') || '—';
+  infoEl.style.display = 'block';
+  resetNsColors();
+}
+
+function resetNsColors() {
+  // "New Design" mode auto-assigns letters (A, B, C…), matching the SKU
+  // Engine's documented convention. "Existing style" mode instead has the
+  // user type a real color name (e.g. "Navy Blue") — real catalog data
+  // uses full color names, not single letters, so auto-lettering next to
+  // an existing color like "Magenta" would look broken. Starts empty;
+  // addNsColor() appends what's typed into #nsNewColorInput.
+  nsColors = nsMode === 'color' ? [] : ['A'];
+  renderNsColors();
 }
 
 function closeNewStyle() {
@@ -4364,19 +4478,41 @@ function closeStyleDetail() {
 }
 
 function renderNsColors() {
-  document.getElementById('nsColorChips').innerHTML = nsColors.map((c, i) =>
+  const containerId = nsMode === 'color' ? 'nsNewColorChips' : 'nsColorChips';
+  document.getElementById(containerId).innerHTML = nsColors.map((c, i) =>
     `<span class="color-chip">${c}<button type="button" class="color-chip-remove" onclick="removeNsColor(${i})">✕</button></span>`
   ).join('');
   updateSkuPreview();
 }
 
+// In "new color of existing style" mode, letters continue on from that
+// style's already-used colors (offset) rather than always starting at A.
 function addNsColor() {
+  if (nsMode === 'color') {
+    const input = document.getElementById('nsNewColorInput');
+    const val = input.value.trim();
+    if (!val) return;
+    if (nsExistingStyleColors.includes(val) || nsColors.includes(val)) {
+      document.getElementById('nsError').textContent = `"${val}" is already a color on this style.`;
+      return;
+    }
+    document.getElementById('nsError').textContent = '';
+    nsColors.push(val);
+    input.value = '';
+    renderNsColors();
+    return;
+  }
   if (nsColors.length >= 26) return;
   nsColors.push(String.fromCharCode(65 + nsColors.length));
   renderNsColors();
 }
 
 function removeNsColor(i) {
+  if (nsMode === 'color') {
+    nsColors.splice(i, 1);
+    renderNsColors();
+    return;
+  }
   if (nsColors.length <= 1) return;
   nsColors.splice(i, 1);
   nsColors = nsColors.map((_, idx) => String.fromCharCode(65 + idx));
@@ -4405,10 +4541,22 @@ function updateStyleCode() {
 }
 
 function updateSkuPreview() {
-  const cat = document.getElementById('nsCategory').value;
-  const codeEl = document.getElementById('nsCodeVal');
   const previewEl = document.getElementById('nsSkuPreview');
   const chipsEl = document.getElementById('nsSkuChips');
+
+  if (nsMode === 'color') {
+    const code = document.getElementById('nsExistingStyle').value;
+    const s = STYLES_DATA.find(x => x.code === code);
+    const sizes = s?.sizes || [];
+    if (!code || !nsColors.length || !sizes.length) { previewEl.style.display = 'none'; return; }
+    const skus = nsColors.flatMap(color => sizes.map(size => `${code}${color}/${size}`));
+    chipsEl.innerHTML = skus.map(sk => `<span class="aoba-sku-tag">${sk}</span>`).join('');
+    previewEl.style.display = 'block';
+    return;
+  }
+
+  const cat = document.getElementById('nsCategory').value;
+  const codeEl = document.getElementById('nsCodeVal');
   if (!cat || !codeEl.textContent || codeEl.textContent === '—') { previewEl.style.display = 'none'; return; }
   const sizes = Array.from(document.querySelectorAll('#nsSizePicker input:checked')).map(cb => cb.value);
   if (!sizes.length) { previewEl.style.display = 'none'; return; }
@@ -4418,10 +4566,39 @@ function updateSkuPreview() {
 }
 
 async function saveNewStyle() {
+  const err = document.getElementById('nsError');
+
+  if (nsMode === 'color') {
+    const code = document.getElementById('nsExistingStyle').value;
+    if (!code) { err.textContent = 'Select an existing style.'; return; }
+    if (!nsColors.length) { err.textContent = 'Add at least one new color.'; return; }
+    const s = STYLES_DATA.find(x => x.code === code);
+    if (!s) { err.textContent = 'Style not found.'; return; }
+    const mergedColors = [...(s.colors || []), ...nsColors];
+
+    let res;
+    try {
+      // Only colors change here — same style code, name, MRP, cost price.
+      // syncSkusForStyle() server-side only ever adds SKU rows, so the
+      // existing colors' SKUs (and any EANs already on them) are untouched.
+      res = await api.patch(`/api/styles/${code}`, { colors: mergedColors });
+    } catch (e) {
+      err.textContent = e.message || 'Failed to add color.';
+      return;
+    }
+    s.colors = res.data.colors || mergedColors;
+    const skusRes = await api.get('/api/ean');
+    SKUS_DATA.length = 0;
+    SKUS_DATA.push(...(skusRes.data || []).map(mapSkuFromApi));
+    closeNewStyle();
+    renderStyles(); renderDashboard(); renderEAN(); renderReports();
+    toast(`Added color${nsColors.length > 1 ? 's' : ''} ${nsColors.join(', ')} to ${code}`, 'success');
+    return;
+  }
+
   const cat  = document.getElementById('nsCategory').value;
   const name = document.getElementById('nsName').value.trim();
   const sizes = Array.from(document.querySelectorAll('#nsSizePicker input:checked')).map(cb => cb.value);
-  const err  = document.getElementById('nsError');
   if (!cat)         { err.textContent = 'Select a category.'; return; }
   if (!name)        { err.textContent = 'Enter a style name.'; return; }
   if (!sizes.length){ err.textContent = 'Select at least one size.'; return; }
@@ -4488,7 +4665,24 @@ function renderEAN() {
 // sheets. It's a starting point shown for styles with no costing entered
 // yet, not a fixed schema — Save Costing persists whatever rows are on
 // screen (defaults, edits, added/removed rows) as-is.
-const DEFAULT_COSTING_ITEMS = ['Fabric','Cups','swimwear tap','Buckle','Cutting','Stiching','Finish/Pack','Tag','Photoshoot','Thread','Pattern'];
+// Starting point shown once per style with no costing yet (see openCosting()) —
+// each item appears exactly once. Five of them have a known standard flat
+// rate per unit (consumption 1 x that rate), prefilled so the amount isn't
+// sitting at zero; the rest are still free-form since they genuinely vary
+// per style. All values stay manually editable either way.
+const DEFAULT_COSTING_ITEMS = [
+  { item: 'Fabric' },
+  { item: 'Cups' },
+  { item: 'swimwear tap' },
+  { item: 'Buckle' },
+  { item: 'Cutting' },
+  { item: 'Stiching' },
+  { item: 'Finish/Pack', consumption: 1, rate: 10 },
+  { item: 'Tag',         consumption: 1, rate: 5 },
+  { item: 'Photoshoot',  consumption: 1, rate: 10 },
+  { item: 'Thread',      consumption: 1, rate: 2 },
+  { item: 'Pattern',     consumption: 1, rate: 5 },
+];
 
 function mapCostingItemFromApi(c) {
   return { id: c.id, styleCode: c.style_code, item: c.item, consumption: +c.consumption, rate: +c.rate };
@@ -4546,11 +4740,15 @@ function openCosting(code) {
   const img = document.getElementById('costImage');
   if ((s.images||[])[0]) { img.src = s.images[0]; img.style.display = ''; } else { img.style.display = 'none'; }
   document.getElementById('costOverheadPct').value = s.overheadPct ?? 15;
+  const mrpInput = document.getElementById('costMrp');
+  mrpInput.value = s.mrp || '';
+  mrpInput.disabled = me?.role !== 'Founder';
+  mrpInput.title = mrpInput.disabled ? 'Only the Founder can set MRP here.' : '';
   document.getElementById('costError').textContent = '';
 
   const items = COSTING_ITEMS.filter(c => c.styleCode === code).map(c => ({ item: c.item, consumption: c.consumption, rate: c.rate }));
   const hasItems = items.length > 0;
-  const rows = hasItems ? items : DEFAULT_COSTING_ITEMS.map(name => ({ item: name, consumption: '', rate: '' }));
+  const rows = hasItems ? items : DEFAULT_COSTING_ITEMS.map(d => ({ item: d.item, consumption: d.consumption ?? '', rate: d.rate ?? '' }));
 
   document.getElementById('costItemsBody').innerHTML = '';
   rows.forEach(it => addCostingRow(it.item, it.consumption, it.rate));
@@ -4612,8 +4810,13 @@ function recalcCosting() {
   });
   const overheadPct = parseFloat(document.getElementById('costOverheadPct').value) || 0;
   const overhead = skuCost * (overheadPct / 100);
+  const totalCost = skuCost + overhead;
   document.getElementById('costSkuCost').textContent = '₹' + skuCost.toFixed(2);
-  document.getElementById('costTotalCost').textContent = '₹' + (skuCost + overhead).toFixed(2);
+  document.getElementById('costTotalCost').textContent = '₹' + totalCost.toFixed(2);
+
+  const mrp = parseFloat(document.getElementById('costMrp').value) || 0;
+  document.getElementById('costMultiplier').textContent =
+    (mrp > 0 && totalCost > 0) ? (mrp / totalCost).toFixed(2) + 'x' : '—';
 }
 
 async function saveCosting() {
@@ -4625,23 +4828,34 @@ async function saveCosting() {
     rate: parseFloat(tr.querySelector('.cost-item-rate').value) || 0,
   })).filter(it => it.item);
   const overhead_pct = parseFloat(document.getElementById('costOverheadPct').value) || 0;
+  const mrpInput = document.getElementById('costMrp');
+  // Only sent when the Founder actually has the field enabled -- omitting the
+  // key entirely (not just sending null) means the backend leaves styles.mrp
+  // untouched for anyone else, rather than trusting a disabled client input.
+  const mrp = mrpInput.disabled ? undefined : (parseFloat(mrpInput.value) || null);
 
   let res;
   try {
-    res = await api.post('/api/styles/costing', { style_code: code, items, overhead_pct });
+    res = await api.post('/api/styles/costing', { style_code: code, items, overhead_pct, mrp });
   } catch (e) {
     document.getElementById('costError').textContent = e.message || 'Failed to save costing.';
     return;
   }
 
   const s = STYLES_DATA.find(x => x.code === code);
-  if (s) { s.overheadPct = overhead_pct; s.costingStatus = 'draft'; }
+  if (s) {
+    s.overheadPct = overhead_pct;
+    s.costingStatus = 'draft';
+    if (mrp !== undefined && mrp !== null) s.mrp = mrp;
+  }
   const remaining = COSTING_ITEMS.filter(c => c.styleCode !== code);
   COSTING_ITEMS.length = 0;
   COSTING_ITEMS.push(...remaining, ...(res.data || []).map(mapCostingItemFromApi));
 
   closeCosting();
   renderCosting();
+  renderStyles();
+  renderDashboard();
   toast('Costing saved for ' + code + (me?.role !== 'Founder' ? ' — pending Founder approval' : ''), 'success');
 }
 

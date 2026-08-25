@@ -10,7 +10,8 @@
 // POST   /api/styles/costing         — replace one style's line items + its overhead %; always sets draft status. Requires edit on Costing.
 // POST   /api/styles/costing-approve — mark a style's costing approved/live. Founder only, regardless of Costing permission.
 // GET    /api/styles/:code        — one style. Requires view.
-// PATCH  /api/styles/:code        — edit name/status/hsn/mrp/cost/description/images/sizes. Requires edit.
+// PATCH  /api/styles/:code        — edit name/status/hsn/mrp/cost/description/images/sizes/colors. Requires edit.
+//                                    (colors grows the SKU list, e.g. "New Color of Existing Style" in the New Style modal.)
 // DELETE /api/styles/:code        — requires edit.
 const { requireModulePermission, withErrorHandling, HttpError } = require('../_lib/auth');
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
@@ -103,7 +104,7 @@ module.exports = withErrorHandling(async (req, res) => {
     if (req.method === 'POST') {
       const { profile: actor } = await requireModulePermission(req, 'Costing', 'edit');
 
-      const { style_code, items, overhead_pct } = req.body || {};
+      const { style_code, items, overhead_pct, mrp } = req.body || {};
       if (!style_code) throw new HttpError(400, 'style_code is required.');
       if (!Array.isArray(items)) throw new HttpError(400, 'items must be an array.');
 
@@ -131,6 +132,10 @@ module.exports = withErrorHandling(async (req, res) => {
       // below), never implied by editing.
       const styleUpdate = { costing_status: 'draft', updated_at: new Date().toISOString() };
       if (overhead_pct !== undefined) styleUpdate.overhead_pct = overhead_pct || 0;
+      // MRP-from-Costing is Founder-only, enforced here regardless of what a
+      // client sends — mirrors costing-approve below, since this is the
+      // field that ultimately reaches the storefront, not a routine edit.
+      if (mrp !== undefined && actor.role === 'Founder') styleUpdate.mrp = mrp || null;
       const { error: ohErr } = await supabaseAdmin.from('styles').update(styleUpdate).eq('code', style_code);
       if (ohErr) throw new HttpError(500, ohErr.message);
 
@@ -193,10 +198,13 @@ module.exports = withErrorHandling(async (req, res) => {
     if (findErr || !existing) throw new HttpError(404, 'Style not found.');
 
     if (req.method === 'PATCH') {
-      const { name, status, hsn_code, mrp, cost_price, description, images, sizes } = req.body || {};
+      const { name, status, hsn_code, mrp, cost_price, description, images, sizes, colors } = req.body || {};
       if (name !== undefined && !String(name).trim()) throw new HttpError(400, 'Style name is required.');
       if (sizes !== undefined && (!Array.isArray(sizes) || !sizes.length)) {
         throw new HttpError(400, 'Select at least one size.');
+      }
+      if (colors !== undefined && (!Array.isArray(colors) || !colors.length)) {
+        throw new HttpError(400, 'At least one color is required.');
       }
       if (images !== undefined && Array.isArray(images) && images.length > 4) {
         throw new HttpError(400, 'A style can have at most 4 images.');
@@ -211,13 +219,19 @@ module.exports = withErrorHandling(async (req, res) => {
       if (description !== undefined) patch.description = description;
       if (images !== undefined) patch.images = images;
       if (sizes !== undefined) patch.sizes = sizes;
+      if (colors !== undefined) patch.colors = colors;
       patch.updated_at = new Date().toISOString();
 
       const { data: updated, error } = await supabaseAdmin
         .from('styles').update(patch).eq('code', code).select().single();
       if (error) throw new HttpError(500, error.message);
 
-      if (sizes !== undefined) await syncSkusForStyle(code, existing.colors, sizes);
+      // Adding a color needs new SKU rows just as much as adding a size does
+      // — sync whenever either changed, using whichever side didn't change
+      // as-is from the pre-update row.
+      if (sizes !== undefined || colors !== undefined) {
+        await syncSkusForStyle(code, colors !== undefined ? colors : existing.colors, sizes !== undefined ? sizes : existing.sizes);
+      }
 
       await writeAudit({
         profile: actor, action: 'update', entity: 'Style',

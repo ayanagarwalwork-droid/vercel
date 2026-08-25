@@ -4,6 +4,20 @@ Internal product/catalog management tool for AOBA. Read this first in any new se
 to pick up where things left off — chat history does not persist across sessions
 started from a different working directory, so this file is the source of truth.
 
+## 🔴 CRITICAL — silent 1000-row data cap, actively hiding data right now
+
+Discovered 2026-08-25 while testing unrelated features, after the Founder's 2026-08-24 bulk
+import pushed the catalog well past 1000 styles / SKUs. Every `GET` that fetches a full table with
+no `.limit()` (`/api/styles`, `/api/ean` i.e. `skus`, and likely `/api/listings`,
+`/api/styles/costing`, `/api/audit` once they grow too) is silently capped at **1000 rows by
+PostgREST's own default** — not something in this app's code, and not something a bare
+`.select('*')` with no `.limit()` call overrides. `STYLES_DATA` and `SKUS_DATA` on the frontend
+are confirmed truncated at exactly 1000 right now, ordered oldest-first (`styles`) or
+alphabetically (`skus`) — meaning most of the catalog is **currently invisible** on Styles,
+EAN/Barcode, Reports, and Costing, with no error or warning anywhere. Not yet fixed — needs real
+pagination (or chunked fetching) added to every affected endpoint + `loadAllData()`. Flagged to
+the user 2026-08-25, priority still to be decided.
+
 ## Stack
 
 - Frontend: static HTML/CSS/JS, no build step — `public/desktop.html`
@@ -253,6 +267,44 @@ Storing it back in Supabase Storage today protects against a corrupted or accide
 row, but *not* against losing the Supabase account itself — worth remembering that's still an
 open gap until it moves off-platform.
 
+## Five Founder-requested items (2026-08-25)
+
+1. **Import history — no more 200-row cap.** `GET /api/import/history` had a hardcoded
+   `.limit(200)`; removed. (Still subject to the 1000-row PostgREST cap above once it grows that
+   far — not fixed by this change alone.)
+2. **"New Color of Existing Style"** — a mode fork at the top of the New Style modal, alongside
+   the existing "New Design" flow. Pick an existing style, type a new color name (free text, not
+   auto-lettered — see below), and it PATCHes that style's `colors` array instead of creating a
+   new style code. Same name/MRP/cost price as the existing style; only the color (and its SKUs)
+   is new. `api/styles/handler.js`'s PATCH now accepts `colors`, and calls `syncSkusForStyle()`
+   whenever either `colors` or `sizes` changes (previously only on `sizes`).
+   **Found while building this:** real catalog data uses full color names ("Magenta", "Navy
+   Blue"), not the single-letter A/B/C scheme the SKU Engine's own Guide article documents — so
+   this mode has the user type the new color's name rather than auto-assigning the next letter
+   (auto-lettering next to a real color name would've looked broken). The "New Design" mode's
+   original auto-letter color picker is untouched — this is the same
+   documented-rule-vs-real-practice mismatch already flagged in the SKU naming memory/open item,
+   now confirmed a second way.
+3. **Costing defaults now prefilled**, not just item names: Finish/Pack ₹10, Tag ₹5, Photoshoot
+   ₹10, Thread ₹2, Pattern ₹5 (consumption 1 × that rate). Fabric/Cups/swimwear tap/Buckle/
+   Cutting/Stiching stay blank, still genuinely variable per style. `DEFAULT_COSTING_ITEMS` is now
+   an array of objects instead of bare strings; still exactly 11 entries, still exactly one row
+   each.
+4. **MRP + Multiplier boxes on the Costing modal.** MRP is Founder-only (enforced both
+   client-side — the input is disabled for anyone else — and server-side in
+   `POST /api/styles/costing`, mirroring `costing-approve`'s pattern). Saving it writes straight to
+   `styles.mrp`, so it shows up on the Styles page immediately. Multiplier = MRP ÷ Total Cost,
+   computed live, shows "—" until both are non-zero.
+5. **Reports: search SKUs by an explicit date range.** On the Old vs New SKU report, two date
+   inputs sit below the existing rolling-window dropdown — when both are filled they override the
+   New/Old bucket entirely (a separate "created between these two dates" search, not a refinement
+   of it). Reuses the same per-SKU completion table already built for that report.
+
+All five were tested against real production data (read-only, via a local proxy that serves
+edited frontend files but forwards `/api/*` to the live backend — meaning backend-only changes
+like #1's limit removal and #4's server-side MRP gate couldn't be exercised locally, only
+reviewed carefully and confirmed correct by re-reading). No live data was written during testing.
+
 ## Recent work (most recent first, from git log)
 
 - Verified single Vercel production deployment
@@ -281,6 +333,12 @@ open gap until it moves off-platform.
   "Costing Pending" not reflecting the real Costing module, Roles & Permissions' off-by-one
   counter) are tracked in the PMOS Inspection Report artifact shared 20 Aug 2026, not duplicated
   here — the counter bug specifically is still unfixed as of this note.
+- **SKU naming rule mismatch, pending Founder decision:** the documented SKU Engine rule (Guide →
+  "SKU Engine explained") treats the color letter as a sub-variant of one shared style — same
+  code, same MRP/cost price, just a different color. The team's real master spreadsheet instead
+  uses codes like `AOD-1A` / `AOD-1B` as fully independent styles with different pricing each.
+  Surfaced 2026-08-20; not yet resolved. Don't assume either convention is "correct" — ask before
+  building anything that depends on style-code-vs-SKU pricing semantics.
 
 ## Working-directory note (why this file exists)
 
