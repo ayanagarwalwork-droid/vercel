@@ -284,14 +284,20 @@ Five items were requested together; #2 ("New Color of Existing Style") was built
 it's fully absent from the codebase again for now, not just hidden. See below for what that
 design was and where to pick it back up.
 
-1. **Import history — no more 200-row cap.** `GET /api/import/history` had a hardcoded
-   `.limit(200)`; removed. (Also needed the 1000-row PostgREST fix above to be complete — done
-   together.)
+1. **Import history — no more 200-row cap, plus real pagination.** `GET /api/import/history` had a
+   hardcoded `.limit(200)`; removed (needed the 1000-row PostgREST fix above too, done together).
+   With the cap gone the list got genuinely long (283 real rows already) — added numbered-page
+   pagination, 25 rows/page, via a new shared `renderPageNumbers()` helper (Prev/Next + a windowed
+   run of page numbers with `…` for gaps, so it stays usable even at hundreds of pages). Reusable
+   for other long lists later, not just this one.
 2. **Costing defaults now prefilled**, not just item names: Finish/Pack ₹10, Tag ₹5, Photoshoot
    ₹10, Thread ₹2, Pattern ₹5 (consumption 1 × that rate). Fabric/Cups/swimwear tap/Buckle/
    Cutting/Stiching stay blank, still genuinely variable per style. `DEFAULT_COSTING_ITEMS` is now
    an array of objects instead of bare strings; still exactly 11 entries, still exactly one row
-   each.
+   each. Also added a **"↺ Reset to Default" button** (`resetCostingToDefault()`) next to "+ Add
+   Item" — replaces the whole grid with the template, and works even on a style that already has
+   saved costing (not just the auto-shown default on a brand-new one). Confirms before wiping the
+   grid; nothing persists until Save Costing either way.
 3. **MRP + Multiplier boxes on the Costing modal.** MRP is Founder-only (enforced both
    client-side — the input is disabled for anyone else — and server-side in
    `POST /api/styles/costing`, mirroring `costing-approve`'s pattern). Saving it writes straight to

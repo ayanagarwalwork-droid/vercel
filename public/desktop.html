@@ -1875,6 +1875,7 @@
               <tbody id="importHistoryTbody"></tbody>
             </table>
           </div>
+          <div id="importHistoryPagination" style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:14px"></div>
         </div>
       </div>
 
@@ -2436,7 +2437,10 @@
         <tbody id="costItemsBody"></tbody>
       </table>
     </div>
-    <button type="button" class="btn btn-outline" style="margin-top:10px;font-size:11px;padding:5px 12px" onclick="addCostingRow()">+ Add Item</button>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button type="button" class="btn btn-outline" style="font-size:11px;padding:5px 12px" onclick="addCostingRow()">+ Add Item</button>
+      <button type="button" class="btn btn-outline" style="font-size:11px;padding:5px 12px" onclick="resetCostingToDefault()">↺ Reset to Default</button>
+    </div>
     <div class="sd-grid" style="margin-top:16px;grid-template-columns:1fr 1fr 1fr">
       <div class="sd-field"><div class="sd-label">SKU Cost</div><div id="costSkuCost" style="font-family:var(--font-display);font-size:20px;font-style:italic">₹0</div></div>
       <div class="sd-field">
@@ -4650,6 +4654,17 @@ function addCostingRow(item, consumption, rate) {
   tbody.appendChild(tr);
 }
 
+// Replaces the whole item grid with the standard template — works
+// regardless of whether this style already has saved costing, not just on
+// first open. Only affects what's on screen; nothing is persisted until
+// Save Costing is clicked, same as any other edit in this modal.
+function resetCostingToDefault() {
+  if (!confirm('Replace all current cost items with the default template? This clears everything currently in the grid (not saved until you click Save Costing).')) return;
+  document.getElementById('costItemsBody').innerHTML = '';
+  DEFAULT_COSTING_ITEMS.forEach(d => addCostingRow(d.item, d.consumption ?? '', d.rate ?? ''));
+  recalcCosting();
+}
+
 function recalcCosting() {
   let skuCost = 0;
   document.querySelectorAll('#costItemsBody tr').forEach(tr => {
@@ -4872,19 +4887,63 @@ async function sendAgentChatMessage() {
 
 // ── IMPORT ────────────────────────────────────────────────────────────────
 const IMPORT_HISTORY = [];
+const IMPORT_HISTORY_PAGE_SIZE = 25;
+let importHistoryPage = 1;
 
 function renderImportHistory() {
   const tbody = document.getElementById('importHistoryTbody');
+  const paginationEl = document.getElementById('importHistoryPagination');
   if (!tbody) return;
-  tbody.innerHTML = IMPORT_HISTORY.map((h, i) => `<tr>
+
+  const totalPages = Math.max(1, Math.ceil(IMPORT_HISTORY.length / IMPORT_HISTORY_PAGE_SIZE));
+  if (importHistoryPage > totalPages) importHistoryPage = totalPages;
+  if (importHistoryPage < 1) importHistoryPage = 1;
+
+  const start = (importHistoryPage - 1) * IMPORT_HISTORY_PAGE_SIZE;
+  const pageRows = IMPORT_HISTORY.slice(start, start + IMPORT_HISTORY_PAGE_SIZE);
+
+  tbody.innerHTML = pageRows.map((h, i) => {
+    const realIdx = start + i; // real index into IMPORT_HISTORY, not just this page
+    return `<tr>
     <td style="color:var(--text3)">${h.date}</td>
     <td>${h.type}</td>
     <td><span class="style-code">${h.file}</span></td>
     <td>${h.rows}</td>
     <td><span class="ean-status ${h.status === 'success' ? 'ean-assigned' : 'ean-unassigned'}">${h.status === 'success' ? 'Success' : 'Failed'}</span></td>
     <td>${h.by}</td>
-    <td><button class="btn btn-outline" style="font-size:11px;padding:3px 10px" onclick="downloadImportFile(${i})" ${!h.rawCsv ? 'disabled title="File content not available"' : ''}>↓ Download</button></td>
-  </tr>`).join('');
+    <td><button class="btn btn-outline" style="font-size:11px;padding:3px 10px" onclick="downloadImportFile(${realIdx})" ${!h.rawCsv ? 'disabled title="File content not available"' : ''}>↓ Download</button></td>
+  </tr>`;
+  }).join('');
+
+  if (paginationEl) paginationEl.innerHTML = renderPageNumbers(importHistoryPage, totalPages, 'goToImportHistoryPage');
+}
+
+function goToImportHistoryPage(p) {
+  importHistoryPage = p;
+  renderImportHistory();
+}
+
+// Shared numbered-pagination control: Prev, a windowed run of page numbers
+// around the current one (with "…" gaps so it stays usable even at hundreds
+// of pages), and Next. `onClickFnName` is called by name from the generated
+// HTML's onclick, since this returns a plain HTML string.
+function renderPageNumbers(current, total, onClickFnName) {
+  if (total <= 1) return '';
+  const pageBtn = (p, label) => `<button class="btn btn-outline${p === current ? ' active' : ''}" style="font-size:11px;padding:4px 10px;${p === current ? 'background:var(--text);color:var(--surface);border-color:var(--text)' : ''}" onclick="${onClickFnName}(${p})">${label ?? p}</button>`;
+  const ellipsis = `<span style="padding:0 4px;color:var(--text3);font-size:11px">…</span>`;
+
+  const pages = new Set([1, total, current, current - 1, current + 1]);
+  const sorted = [...pages].filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
+
+  let html = `<button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="${onClickFnName}(${Math.max(1, current - 1)})" ${current === 1 ? 'disabled' : ''}>‹ Prev</button>`;
+  let prev = 0;
+  for (const p of sorted) {
+    if (prev && p - prev > 1) html += ellipsis;
+    html += pageBtn(p);
+    prev = p;
+  }
+  html += `<button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="${onClickFnName}(${Math.min(total, current + 1)})" ${current === total ? 'disabled' : ''}>Next ›</button>`;
+  return html;
 }
 
 function downloadImportFile(idx) {
