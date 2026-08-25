@@ -1,8 +1,8 @@
 // Keeps the skus table (one row per style+color+size) in sync with a
 // style's colors/sizes. Only ever adds missing rows — never deletes —
-// so shrinking a style's size list (or a style's colors list, e.g. via the
-// "New Color of Existing Style" flow, PATCH /api/styles/:code) can't
-// silently drop a SKU that already has an EAN assigned to it.
+// so shrinking a style's size list can't silently drop a SKU that already
+// has an EAN assigned to it. Colors are fixed at style creation, so the
+// only case that adds combinations post-creation is a sizes change.
 const { supabaseAdmin } = require('./supabaseAdmin');
 
 async function syncSkusForStyle(styleCode, colors, sizes) {

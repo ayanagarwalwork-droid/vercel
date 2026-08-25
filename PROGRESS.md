@@ -277,43 +277,52 @@ Storing it back in Supabase Storage today protects against a corrupted or accide
 row, but *not* against losing the Supabase account itself — worth remembering that's still an
 open gap until it moves off-platform.
 
-## Five Founder-requested items (2026-08-25)
+## Founder-requested items (2026-08-25) — 4 shipped, 1 held back
+
+Five items were requested together; #2 ("New Color of Existing Style") was built, tested, then
+**deliberately reverted** on request — the user wants to make changes to it before it ships, so
+it's fully absent from the codebase again for now, not just hidden. See below for what that
+design was and where to pick it back up.
 
 1. **Import history — no more 200-row cap.** `GET /api/import/history` had a hardcoded
-   `.limit(200)`; removed. (Still subject to the 1000-row PostgREST cap above once it grows that
-   far — not fixed by this change alone.)
-2. **"New Color of Existing Style"** — a mode fork at the top of the New Style modal, alongside
-   the existing "New Design" flow. Pick an existing style, type a new color name (free text, not
-   auto-lettered — see below), and it PATCHes that style's `colors` array instead of creating a
-   new style code. Same name/MRP/cost price as the existing style; only the color (and its SKUs)
-   is new. `api/styles/handler.js`'s PATCH now accepts `colors`, and calls `syncSkusForStyle()`
-   whenever either `colors` or `sizes` changes (previously only on `sizes`).
-   **Found while building this:** real catalog data uses full color names ("Magenta", "Navy
-   Blue"), not the single-letter A/B/C scheme the SKU Engine's own Guide article documents — so
-   this mode has the user type the new color's name rather than auto-assigning the next letter
-   (auto-lettering next to a real color name would've looked broken). The "New Design" mode's
-   original auto-letter color picker is untouched — this is the same
-   documented-rule-vs-real-practice mismatch already flagged in the SKU naming memory/open item,
-   now confirmed a second way.
-3. **Costing defaults now prefilled**, not just item names: Finish/Pack ₹10, Tag ₹5, Photoshoot
+   `.limit(200)`; removed. (Also needed the 1000-row PostgREST fix above to be complete — done
+   together.)
+2. **Costing defaults now prefilled**, not just item names: Finish/Pack ₹10, Tag ₹5, Photoshoot
    ₹10, Thread ₹2, Pattern ₹5 (consumption 1 × that rate). Fabric/Cups/swimwear tap/Buckle/
    Cutting/Stiching stay blank, still genuinely variable per style. `DEFAULT_COSTING_ITEMS` is now
    an array of objects instead of bare strings; still exactly 11 entries, still exactly one row
    each.
-4. **MRP + Multiplier boxes on the Costing modal.** MRP is Founder-only (enforced both
+3. **MRP + Multiplier boxes on the Costing modal.** MRP is Founder-only (enforced both
    client-side — the input is disabled for anyone else — and server-side in
    `POST /api/styles/costing`, mirroring `costing-approve`'s pattern). Saving it writes straight to
    `styles.mrp`, so it shows up on the Styles page immediately. Multiplier = MRP ÷ Total Cost,
    computed live, shows "—" until both are non-zero.
-5. **Reports: search SKUs by an explicit date range.** On the Old vs New SKU report, two date
+4. **Reports: search SKUs by an explicit date range.** On the Old vs New SKU report, two date
    inputs sit below the existing rolling-window dropdown — when both are filled they override the
    New/Old bucket entirely (a separate "created between these two dates" search, not a refinement
    of it). Reuses the same per-SKU completion table already built for that report.
 
-All five were tested against real production data (read-only, via a local proxy that serves
-edited frontend files but forwards `/api/*` to the live backend — meaning backend-only changes
-like #1's limit removal and #4's server-side MRP gate couldn't be exercised locally, only
-reviewed carefully and confirmed correct by re-reading). No live data was written during testing.
+All were tested against real production data (read-only, via a local proxy that serves edited
+frontend files but forwards `/api/*` to the live backend — meaning backend-only changes couldn't
+be exercised locally, only reviewed carefully and confirmed correct by re-reading). No live data
+was written during testing.
+
+### Held back: "New Color of Existing Style" — design notes for next time
+
+A mode fork was built at the top of the New Style modal, alongside the existing "New Design"
+flow: pick an existing style, type a new color name, PATCH that style's `colors` array instead of
+creating a new style code — same name/MRP/cost price as the existing style, only the color (and
+its SKUs) is new. Fully reverted from both frontend and backend (`git log --all --oneline -- public/desktop.html`
+around 2026-08-25 shows the add-then-revert pair if picking this back up) —
+`api/styles/handler.js`'s PATCH no longer accepts `colors` at all right now.
+
+**Worth knowing before rebuilding it:** real catalog data uses full color names ("Magenta", "Navy
+Blue"), not the single-letter A/B/C scheme the SKU Engine's own Guide article documents — the
+reverted version had the user type the new color's name rather than auto-assigning the next
+letter, since auto-lettering next to a real color name would've looked broken. This is the same
+documented-rule-vs-real-practice mismatch already flagged in the SKU naming memory/open item, now
+confirmed a second way — worth resolving that question generally before or alongside rebuilding
+this feature, since it's the same underlying ambiguity.
 
 ## Recent work (most recent first, from git log)
 
