@@ -1047,6 +1047,17 @@
     .ro-summary { border: 1px solid var(--border); background: var(--surface2); border-radius: 6px; padding: 12px 14px; font-size: 12px; color: var(--text2); margin-bottom: 14px; line-height: 1.7; }
     .ro-summary b { color: var(--text); }
 
+    /* 28c · SEARCHABLE STYLE PICKER (Same Pattern / New Color source fields) */
+    .searchable-select { position: relative; }
+    .searchable-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0; margin-top: 2px; max-height: 240px;
+      overflow-y: auto; background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 4px; z-index: 50; box-shadow: 0 6px 16px rgba(17,28,84,0.12);
+    }
+    .searchable-item { padding: 8px 12px; font-size: 13px; color: var(--text); cursor: pointer; }
+    .searchable-item:hover, .searchable-item.active { background: var(--accent-bg); }
+    .searchable-empty { padding: 8px 12px; font-size: 12px; color: var(--text3); }
+
     /* 29 · STYLE IMAGE GALLERY */
     .style-thumb { width:40px; height:40px; object-fit:cover; border-radius:6px; border:1px solid var(--border); flex-shrink:0; }
     .style-thumb-empty { width:40px; height:40px; border:1px dashed var(--border2); border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--text3); font-size:16px; flex-shrink:0; }
@@ -2296,7 +2307,7 @@
     </div>
     <div class="field" style="margin-top:12px">
       <label>Marketplace SKU</label>
-      <input type="text" id="rlMktSku" placeholder="Derived from the AOBA SKU — editable" />
+      <input type="text" id="rlMktSku" placeholder="Derived from the AOBA SKU — editable" oninput="rlMktSkuDirty=true" />
     </div>
     <div class="al-grid" style="margin-top:12px">
       <div class="field" style="margin-bottom:0">
@@ -2412,11 +2423,12 @@
       <div class="modal-title">Same Pattern, New Category</div>
       <button class="modal-close" onclick="closeSamePattern()">✕</button>
     </div>
-    <div class="field">
+    <div class="field searchable-select">
       <label>Existing Pattern (Style)</label>
-      <select id="spSource" onchange="onSpSourceChange()">
-        <option value="">— Select an existing style —</option>
-      </select>
+      <input type="text" id="spSourceInput" placeholder="Search style code or name…" autocomplete="off"
+        oninput="filterStyleSearch('sp')" onfocus="filterStyleSearch('sp')"
+        onblur="setTimeout(()=>document.getElementById('spSourceDropdown').style.display='none', 150)" />
+      <div class="searchable-dropdown" id="spSourceDropdown" style="display:none"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;margin-bottom:18px">
       <div class="field" style="margin-bottom:0">
@@ -2425,10 +2437,6 @@
           <option value="">— Select category —</option>
         </select>
       </div>
-    </div>
-    <div class="field">
-      <label>Style Name</label>
-      <input type="text" id="spName" placeholder="e.g. Printed Floral Lace Set" />
     </div>
     <div class="field">
       <label>Description <span style="font-size:10px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label>
@@ -2471,11 +2479,12 @@
       <div class="modal-title">New Color on Existing SKU</div>
       <button class="modal-close" onclick="closeNewColor()">✕</button>
     </div>
-    <div class="field">
+    <div class="field searchable-select">
       <label>Existing Style</label>
-      <select id="ncSource" onchange="updateNewColorPreview()">
-        <option value="">— Select an existing style —</option>
-      </select>
+      <input type="text" id="ncSourceInput" placeholder="Search style code or name…" autocomplete="off"
+        oninput="filterStyleSearch('nc')" onfocus="filterStyleSearch('nc')"
+        onblur="setTimeout(()=>document.getElementById('ncSourceDropdown').style.display='none', 150)" />
+      <div class="searchable-dropdown" id="ncSourceDropdown" style="display:none"></div>
     </div>
     <div id="ncSummary" class="ro-summary" style="display:none"></div>
     <div class="modal-error" id="ncError"></div>
@@ -4691,7 +4700,12 @@ function splitClientCode(code, category) {
   const m = /^(\d+)([A-Za-z]?)$/.exec(rest);
   return m ? { number: m[1], letter: m[2] || '' } : null;
 }
-function nextAvailableLetterClient(category, number, preferredLetter) {
+// Always the next free letter for this category+number — never a preferred/
+// carried-over one. Same rule the SKU Engine already uses for a fresh color
+// on one pattern; "same pattern, new category" is just that pattern gaining
+// a presence in a category it doesn't have yet, so it follows the same rule
+// rather than trying to match the source's own letter.
+function nextAvailableLetterClient(category, number) {
   const prefix = `${category}-${number}`;
   const exact = new RegExp(`^${prefix}([A-Za-z]?)$`);
   const used = new Set();
@@ -4699,7 +4713,6 @@ function nextAvailableLetterClient(category, number, preferredLetter) {
     const m = exact.exec(s.code);
     if (m) used.add((m[1] || '').toUpperCase());
   });
-  if (preferredLetter !== undefined && !used.has(preferredLetter)) return preferredLetter;
   for (let i = 0; i < 26; i++) {
     const letter = String.fromCharCode(65 + i);
     if (!used.has(letter)) return letter;
@@ -4707,11 +4720,39 @@ function nextAvailableLetterClient(category, number, preferredLetter) {
   return null;
 }
 
+// ── Shared searchable style picker (used by "Same Pattern" and "New Color") ──
+// A plain <select> is unusable over 1000+ styles, so both source pickers are
+// a text input + filtered dropdown instead. `prefix` is 'sp' or 'nc'.
+let spSourceCode = '';
+let ncSourceCode = '';
+function styleSearchMatches(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return STYLES_DATA.slice(0, 50);
+  return STYLES_DATA.filter(s =>
+    s.code.toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q)
+  ).slice(0, 50);
+}
+function filterStyleSearch(prefix) {
+  const input = document.getElementById(prefix + 'SourceInput');
+  const dd = document.getElementById(prefix + 'SourceDropdown');
+  const matches = styleSearchMatches(input.value);
+  dd.innerHTML = matches.length
+    ? matches.map(s => `<div class="searchable-item" onmousedown="selectStyleSearch('${prefix}','${s.code}')">${s.code} — ${s.name}</div>`).join('')
+    : '<div class="searchable-empty">No matching styles.</div>';
+  dd.style.display = 'block';
+}
+function selectStyleSearch(prefix, code) {
+  const s = STYLES_DATA.find(x => x.code === code);
+  document.getElementById(prefix + 'SourceInput').value = s ? `${s.code} — ${s.name}` : code;
+  document.getElementById(prefix + 'SourceDropdown').style.display = 'none';
+  if (prefix === 'sp') { spSourceCode = code; onSpSourceChange(); }
+  else { ncSourceCode = code; updateNewColorPreview(); }
+}
+
 function openSamePattern() {
-  const sel = document.getElementById('spSource');
-  sel.innerHTML = '<option value="">— Select an existing style —</option>' +
-    STYLES_DATA.map(s => `<option value="${s.code}">${s.code} — ${s.name}</option>`).join('');
-  document.getElementById('spName').value = '';
+  spSourceCode = '';
+  document.getElementById('spSourceInput').value = '';
+  document.getElementById('spSourceDropdown').style.display = 'none';
   document.getElementById('spDescription').value = '';
   document.getElementById('spCategory').innerHTML = '<option value="">— Select category —</option>';
   document.getElementById('spCodeRow').style.display = 'none';
@@ -4719,7 +4760,7 @@ function openSamePattern() {
   document.getElementById('spError').textContent = '';
   document.querySelectorAll('#spSizePicker input').forEach(cb => cb.checked = false);
   document.getElementById('samePatternModal').classList.add('open');
-  setTimeout(() => sel.focus(), 120);
+  setTimeout(() => document.getElementById('spSourceInput').focus(), 120);
 }
 
 function closeSamePattern() {
@@ -4727,17 +4768,17 @@ function closeSamePattern() {
 }
 
 function onSpSourceChange() {
-  const code = document.getElementById('spSource').value;
   const catSel = document.getElementById('spCategory');
-  const source = STYLES_DATA.find(s => s.code === code);
+  const source = STYLES_DATA.find(s => s.code === spSourceCode);
   if (!source) {
     catSel.innerHTML = '<option value="">— Select category —</option>';
     updateSamePatternPreview();
     return;
   }
-  // Name + Description carry over (editable); sizes/images/costing stay
-  // fresh for the new category, per the Founder's explicit call.
-  document.getElementById('spName').value = source.name || '';
+  // Description carries over (editable) — Style Name isn't shown/asked here
+  // at all; the new style just takes the source's name directly, same as
+  // its color always follows the SKU Engine's own next-available rule
+  // rather than copying anything from the source.
   document.getElementById('spDescription').value = source.description || '';
   catSel.innerHTML = '<option value="">— Select category —</option>' +
     CATEGORIES.filter(c => c.code !== source.category).map(c => {
@@ -4748,23 +4789,20 @@ function onSpSourceChange() {
 }
 
 function updateSamePatternPreview() {
-  const sourceCode = document.getElementById('spSource').value;
   const cat = document.getElementById('spCategory').value;
   const codeRow = document.getElementById('spCodeRow');
   const previewEl = document.getElementById('spSkuPreview');
-  const source = STYLES_DATA.find(s => s.code === sourceCode);
+  const source = STYLES_DATA.find(s => s.code === spSourceCode);
   const split = source && splitClientCode(source.code, source.category);
   if (!source || !cat || !split) {
     codeRow.style.display = 'none';
     previewEl.style.display = 'none';
     return;
   }
-  const letter = nextAvailableLetterClient(cat, split.number, split.letter);
+  const letter = nextAvailableLetterClient(cat, split.number);
   const newCode = `${cat}-${split.number}${letter || ''}`;
   document.getElementById('spCodeVal').textContent = newCode;
-  document.getElementById('spCodeNote').textContent = letter === split.letter
-    ? 'Same pattern number and color, new category'
-    : `Same pattern number, new category — ${split.letter || '(no)'} was taken here, using ${letter} instead`;
+  document.getElementById('spCodeNote').textContent = `Same pattern number, new category — next available color: ${letter}`;
   codeRow.style.display = 'flex';
 
   const sizes = Array.from(document.querySelectorAll('#spSizePicker input:checked')).map(cb => cb.value);
@@ -4775,21 +4813,18 @@ function updateSamePatternPreview() {
 }
 
 async function saveSamePattern() {
-  const sourceCode = document.getElementById('spSource').value;
   const cat = document.getElementById('spCategory').value;
-  const name = document.getElementById('spName').value.trim();
   const description = document.getElementById('spDescription').value.trim();
   const sizes = Array.from(document.querySelectorAll('#spSizePicker input:checked')).map(cb => cb.value);
   const err = document.getElementById('spError');
-  if (!sourceCode) { err.textContent = 'Select an existing style.'; return; }
-  if (!cat)        { err.textContent = 'Select a category.'; return; }
-  if (!name)       { err.textContent = 'Enter a style name.'; return; }
+  if (!spSourceCode) { err.textContent = 'Select an existing style.'; return; }
+  if (!cat)          { err.textContent = 'Select a category.'; return; }
   if (!sizes.length) { err.textContent = 'Select at least one size.'; return; }
 
   let res;
   try {
     res = await api.post('/api/styles/same-pattern', {
-      source_code: sourceCode, category: cat, name, description, sizes,
+      source_code: spSourceCode, category: cat, description, sizes,
     });
   } catch (e) {
     err.textContent = e.message || 'Failed to create style.';
@@ -4807,13 +4842,13 @@ async function saveSamePattern() {
 // new sibling style row (never mutates the source) — see the comment on
 // splitClientCode above for why.
 function openNewColorOnExisting() {
-  const sel = document.getElementById('ncSource');
-  sel.innerHTML = '<option value="">— Select an existing style —</option>' +
-    STYLES_DATA.map(s => `<option value="${s.code}">${s.code} — ${s.name}</option>`).join('');
+  ncSourceCode = '';
+  document.getElementById('ncSourceInput').value = '';
+  document.getElementById('ncSourceDropdown').style.display = 'none';
   document.getElementById('ncSummary').style.display = 'none';
   document.getElementById('ncError').textContent = '';
   document.getElementById('newColorModal').classList.add('open');
-  setTimeout(() => sel.focus(), 120);
+  setTimeout(() => document.getElementById('ncSourceInput').focus(), 120);
 }
 
 function closeNewColor() {
@@ -4821,15 +4856,14 @@ function closeNewColor() {
 }
 
 function updateNewColorPreview() {
-  const code = document.getElementById('ncSource').value;
   const summary = document.getElementById('ncSummary');
   const err = document.getElementById('ncError');
   err.textContent = '';
-  const s = STYLES_DATA.find(x => x.code === code);
+  const s = STYLES_DATA.find(x => x.code === ncSourceCode);
   if (!s) { summary.style.display = 'none'; return; }
   const split = splitClientCode(s.code, s.category);
   if (!split) { summary.style.display = 'none'; err.textContent = 'Could not read this style\'s code format.'; return; }
-  const nextLetter = nextAvailableLetterClient(s.category, split.number); // no preferred — always fresh
+  const nextLetter = nextAvailableLetterClient(s.category, split.number);
   if (!nextLetter) {
     summary.style.display = 'none';
     err.textContent = 'All 26 colors are already used for this pattern.';
@@ -4845,13 +4879,12 @@ function updateNewColorPreview() {
 }
 
 async function saveNewColor() {
-  const code = document.getElementById('ncSource').value;
   const err = document.getElementById('ncError');
-  if (!code) { err.textContent = 'Select an existing style.'; return; }
+  if (!ncSourceCode) { err.textContent = 'Select an existing style.'; return; }
 
   let res;
   try {
-    res = await api.post('/api/styles/add-color-variant', { source_code: code });
+    res = await api.post('/api/styles/add-color-variant', { source_code: ncSourceCode });
   } catch (e) {
     err.textContent = e.message || 'Failed to add color.';
     return;
@@ -4860,7 +4893,7 @@ async function saveNewColor() {
   closeNewColor();
   renderStyles();
   renderDashboard();
-  toast(`Created ${res.data.code} — new color of ${code}.`, 'success');
+  toast(`Created ${res.data.code} — new color of ${ncSourceCode}.`, 'success');
 }
 
 // ── ADD LISTING — MODE CHOOSER ──────────────────────────────────────────────
@@ -4877,7 +4910,10 @@ function chooseListingMode(mode) {
 }
 
 // ── RELIST AN EXISTING LISTING ──────────────────────────────────────────────
+let rlMktSkuDirty = false; // true once the user has hand-edited the Marketplace SKU field
+
 function openRelistExisting() {
+  rlMktSkuDirty = false;
   const sel = document.getElementById('rlSource');
   // One entry per distinct (sku, marketplace) pair — prefer the master row
   // for the label/prefill if one exists, else whichever row is found first.
@@ -4906,6 +4942,7 @@ function closeRelist() {
 }
 
 function onRlSourceChange() {
+  rlMktSkuDirty = false;
   const id = document.getElementById('rlSource').value;
   const prefixSel = document.getElementById('rlPrefix');
   const cappedNote = document.getElementById('rlCappedNote');
@@ -4942,7 +4979,11 @@ function onRlPrefixChange() {
   const sku = document.getElementById('rlSku').value;
   const prefix = document.getElementById('rlPrefix').value;
   const mktSkuEl = document.getElementById('rlMktSku');
-  if (sku && prefix && !mktSkuEl.value) {
+  // Keep following the prefix as it changes (M -> T) as long as the user
+  // hasn't typed their own value — checking mktSkuEl.value alone broke this
+  // the moment it got auto-filled once, since a non-dirty auto-filled value
+  // still looks "non-empty" the next time this runs.
+  if (sku && prefix && !rlMktSkuDirty) {
     mktSkuEl.value = prefix + sku;
   }
 }

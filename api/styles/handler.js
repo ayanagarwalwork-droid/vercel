@@ -94,23 +94,22 @@ module.exports = withErrorHandling(async (req, res) => {
   // POST /api/styles/same-pattern — reuse an existing style's pattern number
   // in a different category (e.g. AISW-208A's print, added to Beach Wear as
   // AIBW-208A). Deliberately does NOT call create_style_with_code / touch
-  // style_number_counters — the number is reused, not drawn fresh. Real
-  // catalog codes bake the color letter into the code itself (one row per
-  // color, not the documented "colors: []" array — see styleCodes.js), so
-  // the source's own letter is carried over when free, or the next
-  // available one is used instead — never a hard "already exists" error.
+  // style_number_counters — the number is reused, not drawn fresh. The name
+  // is copied straight from the source (not asked for); the color always
+  // follows the SKU Engine's own next-available-letter rule for that
+  // category+number — same rule add-color-variant uses — never copied from
+  // the source and never a hard "already exists" error.
   if (params.length === 1 && params[0] === 'same-pattern') {
     if (req.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
     const { profile: actor } = await requireModulePermission(req, 'Styles', 'edit');
 
-    const { source_code, category, name, description, sizes } = req.body || {};
+    const { source_code, category, description, sizes } = req.body || {};
     if (!source_code) throw new HttpError(400, 'Select a source style.');
     if (!category) throw new HttpError(400, 'Select a category.');
-    if (!name || !String(name).trim()) throw new HttpError(400, 'Enter a style name.');
     if (!Array.isArray(sizes) || !sizes.length) throw new HttpError(400, 'Select at least one size.');
 
     const { data: source, error: srcErr } = await supabaseAdmin
-      .from('styles').select('code, category').eq('code', source_code).maybeSingle();
+      .from('styles').select('code, category, name').eq('code', source_code).maybeSingle();
     if (srcErr) throw new HttpError(500, srcErr.message);
     if (!source) throw new HttpError(404, `Source style not found: ${source_code}`);
     if (source.category === category) throw new HttpError(400, 'Pick a different category than the source style.');
@@ -123,19 +122,19 @@ module.exports = withErrorHandling(async (req, res) => {
 
     let data, error, newCode, letter;
     for (let attempt = 0; attempt < 26; attempt++) {
-      ({ code: newCode, letter } = await nextAvailableCode(category, split.number, attempt === 0 ? split.letter : undefined));
+      ({ code: newCode, letter } = await nextAvailableCode(category, split.number));
       ({ data, error } = await supabaseAdmin
         .from('styles')
         .insert({
-          code: newCode, name: String(name).trim(), category, status: 'active',
-          colors: [letter || 'A'], sizes, description: description || null, created_by: actor.id,
+          code: newCode, name: source.name, category, status: 'active',
+          colors: [letter], sizes, description: description || null, created_by: actor.id,
         })
         .select().single());
       if (!error || error.code !== '23505') break; // success, or a real (non-race) failure
     }
     if (error) throw new HttpError(500, error.message);
 
-    await syncSkusForColorCodedStyle(newCode, letter || 'A', sizes);
+    await syncSkusForColorCodedStyle(newCode, letter, sizes);
 
     await writeAudit({
       profile: actor, action: 'create', entity: 'Style',

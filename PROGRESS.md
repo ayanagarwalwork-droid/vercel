@@ -362,21 +362,31 @@ one for a given category+number.
 
 **New Style → 3 modes** (`openStyleModeChooser()`):
 - **A. New listing on an existing pattern** (`openSamePattern()` / `saveSamePattern()`) — pick an
-  existing style, pick a *different* category; the pattern's number carries over and its own
-  color letter is carried over too if free there, otherwise the next available letter is used
-  instead (`AISW-208A` → `AIBW-208A`, or `AIBW-208B` if `208A` is already taken in Beach Wear) —
-  never a hard "already exists" error. Only Name + Description prefill from the source (editable);
-  sizes, images, and costing are fresh for the new category. Backend: new
-  `POST /api/styles/same-pattern` — deliberately bypasses the `create_style_with_code` RPC and
-  `style_number_counters` entirely (the number is reused, not drawn fresh), with a 23505-retry
-  loop across letters as the race-safety net.
+  existing style (via a searchable text-input picker, not a 1400+-option `<select>` — see below),
+  pick a *different* category; the pattern's number carries over, and its color **always follows
+  the SKU Engine's own next-available-letter rule** for that category+number (same rule
+  `add-color-variant` uses) — never copied/carried from the source. The **Style Name field was
+  removed** from this modal entirely; the new style just takes the source's name directly, no
+  prompt. Only Description still prefills (editable); sizes, images, and costing are fresh for the
+  new category. Backend: new `POST /api/styles/same-pattern` — deliberately bypasses the
+  `create_style_with_code` RPC and `style_number_counters` entirely (the number is reused, not
+  drawn fresh), with a 23505-retry loop across letters as the race-safety net.
+
+  *(First shipped version carried the source's own letter over when free, falling back only on a
+  collision — the Founder corrected this after testing: it should always be "next available for
+  this pattern," full stop, same as C below, not something that looks like it copied the source.)*
 - **B. A completely new listing** — unchanged, today's original `openNewStyle()` flow.
 - **C. A new color in an existing SKU** (`openNewColorOnExisting()` / `saveNewColor()`) — this is
-  the previously-reverted item 2, rebuilt to match real practice: pick a style, and it creates a
-  whole **new sibling style row** (never mutates the source) with the next free letter for that
-  same category+number, copying name/category/sizes/MRP/cost/HSN/description from the source —
-  images are deliberately *not* copied, since a different colorway usually needs its own photos.
-  Backend: new `POST /api/styles/add-color-variant`.
+  the previously-reverted item 2, rebuilt to match real practice: pick a style (same searchable
+  picker), and it creates a whole **new sibling style row** (never mutates the source) with the
+  next free letter for that same category+number, copying name/category/sizes/MRP/cost/HSN/
+  description from the source — images are deliberately *not* copied, since a different colorway
+  usually needs its own photos. Backend: new `POST /api/styles/add-color-variant`.
+
+**Searchable style picker** — both A and C's "existing style" field is a text input + filtered
+dropdown (`filterStyleSearch()`/`selectStyleSearch()`, matching on code or name substring, capped
+at 50 results) instead of a plain `<select>` — the catalog has 1400+ styles, making a native
+dropdown unusable for finding one. Same picker, reused for both modals.
 
 **Add Listing → 2 modes** (`openListingModeChooser()`):
 - **A. New listing** — unchanged `openAddListing()` form, minus the manual Master/Relisting `Type`
@@ -385,7 +395,11 @@ one for a given category+number.
 - **B. Relisting of an existing listing** (`openRelistExisting()` / `saveRelist()`) — pick an
   existing listing, choose 1st (`M`) or 2nd (`T`) relisting (already-used prefixes are disabled;
   if both are taken, Save is blocked with a message pointing at the Founder rather than
-  extrapolating a 3rd letter). Marketplace SKU prefills as `prefix + AOBA SKU`, editable.
+  extrapolating a 3rd letter). Marketplace SKU prefills as `prefix + AOBA SKU`, editable —
+  switching between M and T re-prefills it live as long as the user hasn't hand-edited it yet
+  (tracked via an `rlMktSkuDirty` flag; the first version checked `!mktSkuEl.value` instead, which
+  broke the moment the field got auto-filled once, since a non-dirty auto-filled value still
+  "looks" non-empty on the next prefix change — found via Founder testing).
 
   This finally implements the **relisting prefix rule** from 2026-08-25 (see "Known open items"
   below) — required a real schema change since `unique(sku, marketplace)` made a second row for
