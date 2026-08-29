@@ -2434,30 +2434,21 @@
       <label>Description <span style="font-size:10px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label>
       <input type="text" id="spDescription" placeholder="Carried over from the source style — editable" />
     </div>
-    <div style="display:flex;gap:16px">
-      <div class="field" style="flex:1">
-        <label>Colors</label>
-        <div class="color-picker-wrap">
-          <div class="color-picker-chips" id="spColorChips"></div>
-          <button type="button" class="color-add-btn" onclick="addSpColor()">+ Add Color</button>
-        </div>
-      </div>
-      <div class="field" style="flex:1">
-        <label>Sizes</label>
-        <div class="size-picker-wrap" id="spSizePicker">
-          <label class="size-cb-label"><input type="checkbox" value="S"   onchange="updateSamePatternPreview()"> S</label>
-          <label class="size-cb-label"><input type="checkbox" value="M"   onchange="updateSamePatternPreview()"> M</label>
-          <label class="size-cb-label"><input type="checkbox" value="L"   onchange="updateSamePatternPreview()"> L</label>
-          <label class="size-cb-label"><input type="checkbox" value="XL"  onchange="updateSamePatternPreview()"> XL</label>
-          <label class="size-cb-label"><input type="checkbox" value="XXL" onchange="updateSamePatternPreview()"> XXL</label>
-          <label class="size-cb-label"><input type="checkbox" value="ONE" onchange="updateSamePatternPreview()"> ONE</label>
-        </div>
+    <div class="field">
+      <label>Sizes</label>
+      <div class="size-picker-wrap" id="spSizePicker">
+        <label class="size-cb-label"><input type="checkbox" value="S"   onchange="updateSamePatternPreview()"> S</label>
+        <label class="size-cb-label"><input type="checkbox" value="M"   onchange="updateSamePatternPreview()"> M</label>
+        <label class="size-cb-label"><input type="checkbox" value="L"   onchange="updateSamePatternPreview()"> L</label>
+        <label class="size-cb-label"><input type="checkbox" value="XL"  onchange="updateSamePatternPreview()"> XL</label>
+        <label class="size-cb-label"><input type="checkbox" value="XXL" onchange="updateSamePatternPreview()"> XXL</label>
+        <label class="size-cb-label"><input type="checkbox" value="ONE" onchange="updateSamePatternPreview()"> ONE</label>
       </div>
     </div>
     <div class="ns-code-row" id="spCodeRow" style="display:none">
       <div>
         <div class="ns-code-label">New Style Code</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">Same pattern number, new category</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px" id="spCodeNote">Same pattern number, new category</div>
       </div>
       <div class="ns-code-val" id="spCodeVal">—</div>
     </div>
@@ -4690,14 +4681,36 @@ function chooseStyleMode(mode) {
 }
 
 // ── SAME PATTERN, NEW CATEGORY ──────────────────────────────────────────────
-let spColors = ['A'];
+// Real catalog codes bake the color letter into the style CODE itself (one
+// row per color — AISW-208A, AISW-208B… — not the documented "colors: []
+// on one row" model). splitClientCode below mirrors the server's
+// api/_lib/styleCodes.js logic for the live preview only; the server is
+// always authoritative about which letter actually gets used.
+function splitClientCode(code, category) {
+  const rest = code.slice(category.length + 1);
+  const m = /^(\d+)([A-Za-z]?)$/.exec(rest);
+  return m ? { number: m[1], letter: m[2] || '' } : null;
+}
+function nextAvailableLetterClient(category, number, preferredLetter) {
+  const prefix = `${category}-${number}`;
+  const exact = new RegExp(`^${prefix}([A-Za-z]?)$`);
+  const used = new Set();
+  STYLES_DATA.forEach(s => {
+    const m = exact.exec(s.code);
+    if (m) used.add((m[1] || '').toUpperCase());
+  });
+  if (preferredLetter !== undefined && !used.has(preferredLetter)) return preferredLetter;
+  for (let i = 0; i < 26; i++) {
+    const letter = String.fromCharCode(65 + i);
+    if (!used.has(letter)) return letter;
+  }
+  return null;
+}
 
 function openSamePattern() {
   const sel = document.getElementById('spSource');
   sel.innerHTML = '<option value="">— Select an existing style —</option>' +
     STYLES_DATA.map(s => `<option value="${s.code}">${s.code} — ${s.name}</option>`).join('');
-  spColors = ['A'];
-  renderSpColors();
   document.getElementById('spName').value = '';
   document.getElementById('spDescription').value = '';
   document.getElementById('spCategory').innerHTML = '<option value="">— Select category —</option>';
@@ -4734,42 +4747,29 @@ function onSpSourceChange() {
   updateSamePatternPreview();
 }
 
-function renderSpColors() {
-  document.getElementById('spColorChips').innerHTML = spColors.map((c, i) =>
-    `<span class="color-chip">${c}<button type="button" class="color-chip-remove" onclick="removeSpColor(${i})">✕</button></span>`
-  ).join('');
-  updateSamePatternPreview();
-}
-function addSpColor() {
-  if (spColors.length >= 26) return;
-  spColors.push(String.fromCharCode(65 + spColors.length));
-  renderSpColors();
-}
-function removeSpColor(i) {
-  if (spColors.length <= 1) return;
-  spColors.splice(i, 1);
-  spColors = spColors.map((_, idx) => String.fromCharCode(65 + idx));
-  renderSpColors();
-}
-
 function updateSamePatternPreview() {
   const sourceCode = document.getElementById('spSource').value;
   const cat = document.getElementById('spCategory').value;
   const codeRow = document.getElementById('spCodeRow');
   const previewEl = document.getElementById('spSkuPreview');
-  const numMatch = /-(\d+)$/.exec(sourceCode || '');
-  if (!sourceCode || !cat || !numMatch) {
+  const source = STYLES_DATA.find(s => s.code === sourceCode);
+  const split = source && splitClientCode(source.code, source.category);
+  if (!source || !cat || !split) {
     codeRow.style.display = 'none';
     previewEl.style.display = 'none';
     return;
   }
-  const newCode = `${cat}-${numMatch[1]}`;
+  const letter = nextAvailableLetterClient(cat, split.number, split.letter);
+  const newCode = `${cat}-${split.number}${letter || ''}`;
   document.getElementById('spCodeVal').textContent = newCode;
+  document.getElementById('spCodeNote').textContent = letter === split.letter
+    ? 'Same pattern number and color, new category'
+    : `Same pattern number, new category — ${split.letter || '(no)'} was taken here, using ${letter} instead`;
   codeRow.style.display = 'flex';
 
   const sizes = Array.from(document.querySelectorAll('#spSizePicker input:checked')).map(cb => cb.value);
   if (!sizes.length) { previewEl.style.display = 'none'; return; }
-  const skus = spColors.flatMap(color => sizes.map(size => `${newCode}${color}/${size}`));
+  const skus = sizes.map(size => `${newCode}/${size}`);
   document.getElementById('spSkuChips').innerHTML = skus.map(s => `<span class="aoba-sku-tag">${s}</span>`).join('');
   previewEl.style.display = 'block';
 }
@@ -4789,8 +4789,7 @@ async function saveSamePattern() {
   let res;
   try {
     res = await api.post('/api/styles/same-pattern', {
-      source_code: sourceCode, category: cat, name, description,
-      sizes, colors: [...spColors],
+      source_code: sourceCode, category: cat, name, description, sizes,
     });
   } catch (e) {
     err.textContent = e.message || 'Failed to create style.';
@@ -4804,6 +4803,9 @@ async function saveSamePattern() {
 }
 
 // ── NEW COLOR ON EXISTING SKU ────────────────────────────────────────────────
+// Real catalog practice is one style row per color, so this creates a whole
+// new sibling style row (never mutates the source) — see the comment on
+// splitClientCode above for why.
 function openNewColorOnExisting() {
   const sel = document.getElementById('ncSource');
   sel.innerHTML = '<option value="">— Select an existing style —</option>' +
@@ -4825,18 +4827,20 @@ function updateNewColorPreview() {
   err.textContent = '';
   const s = STYLES_DATA.find(x => x.code === code);
   if (!s) { summary.style.display = 'none'; return; }
-  if ((s.colors || []).length >= 26) {
+  const split = splitClientCode(s.code, s.category);
+  if (!split) { summary.style.display = 'none'; err.textContent = 'Could not read this style\'s code format.'; return; }
+  const nextLetter = nextAvailableLetterClient(s.category, split.number); // no preferred — always fresh
+  if (!nextLetter) {
     summary.style.display = 'none';
-    err.textContent = 'This style already has the maximum 26 colors.';
+    err.textContent = 'All 26 colors are already used for this pattern.';
     return;
   }
-  const nextColor = String.fromCharCode(65 + (s.colors || []).length);
+  const newCode = `${s.category}-${split.number}${nextLetter}`;
   summary.innerHTML =
-    `<b>${s.code}</b> — ${s.name}<br>` +
+    `Source: <b>${s.code}</b> — ${s.name}<br>` +
     `Category: <b>${s.category}</b> &nbsp;·&nbsp; Sizes: <b>${(s.sizes||[]).join(', ')}</b><br>` +
     `MRP: <b>${s.mrp ? '₹'+s.mrp : '—'}</b> &nbsp;·&nbsp; Cost Price: <b>${s.costPrice ? '₹'+s.costPrice : '—'}</b><br>` +
-    `Current colors: <b>${(s.colors||[]).join(', ')}</b><br>` +
-    `New color to add: <b>${nextColor}</b>`;
+    `New style to create: <b>${newCode}</b> (color ${nextLetter}) — a new row, source untouched`;
   summary.style.display = 'block';
 }
 
@@ -4847,17 +4851,16 @@ async function saveNewColor() {
 
   let res;
   try {
-    res = await api.patch(`/api/styles/${code}`, { add_color: true });
+    res = await api.post('/api/styles/add-color-variant', { source_code: code });
   } catch (e) {
     err.textContent = e.message || 'Failed to add color.';
     return;
   }
-  const s = STYLES_DATA.find(x => x.code === code);
-  if (s) Object.assign(s, mapStyleFromApi(res.data));
-  const addedColor = res.data.colors[res.data.colors.length - 1];
+  STYLES_DATA.push(mapStyleFromApi(res.data));
   closeNewColor();
   renderStyles();
-  toast(`Added color ${addedColor} to ${code}.`, 'success');
+  renderDashboard();
+  toast(`Created ${res.data.code} — new color of ${code}.`, 'success');
 }
 
 // ── ADD LISTING — MODE CHOOSER ──────────────────────────────────────────────

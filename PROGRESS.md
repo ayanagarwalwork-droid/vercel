@@ -348,21 +348,35 @@ internal SKU suffix, not a display name — real full-name colors elsewhere are 
 Both "+ New Style" and "+ Add Listing" now open a mode-chooser first instead of jumping straight
 into a form, because each button was being asked to serve more than one real workflow.
 
+**Correction made mid-build, while testing against real production data:** the first pass of
+both features below assumed the *documented* SKU Engine model — one style row, a `colors: []`
+array, code format `{CATEGORY}-{NUMBER}` with no letter. Live-testing "same pattern" against a
+real style (`AISW-208A`) proved that's not how the catalog actually works — **every real style
+is one row per color**, with the letter baked directly into the style `code` itself
+(`AISW-208A`, `AOCS-15A`/`15B`/`15C`… are each separate rows, not one row with a multi-color
+array — see "SKU naming rule mismatch" below, now confirmed a second way and clearly the
+universal real pattern, not an isolated exception). Both features were redesigned around that
+reality before shipping — `api/_lib/styleCodes.js` (new) has the shared `splitCode`/
+`nextAvailableCode` logic both routes use to read a style's own letter and find the next free
+one for a given category+number.
+
 **New Style → 3 modes** (`openStyleModeChooser()`):
 - **A. New listing on an existing pattern** (`openSamePattern()` / `saveSamePattern()`) — pick an
-  existing style, pick a *different* category, and the same pattern number carries over
-  (`AISW-208` → `AIBW-208`). Only Name + Description prefill from the source (editable); sizes,
-  images, and costing are fresh for the new category. Backend: new
+  existing style, pick a *different* category; the pattern's number carries over and its own
+  color letter is carried over too if free there, otherwise the next available letter is used
+  instead (`AISW-208A` → `AIBW-208A`, or `AIBW-208B` if `208A` is already taken in Beach Wear) —
+  never a hard "already exists" error. Only Name + Description prefill from the source (editable);
+  sizes, images, and costing are fresh for the new category. Backend: new
   `POST /api/styles/same-pattern` — deliberately bypasses the `create_style_with_code` RPC and
-  `style_number_counters` entirely (the number is reused, not drawn fresh), relying on the
-  `styles.code` primary key for race-safe duplicate protection, same 23505-catch pattern as the
-  main create endpoint.
+  `style_number_counters` entirely (the number is reused, not drawn fresh), with a 23505-retry
+  loop across letters as the race-safety net.
 - **B. A completely new listing** — unchanged, today's original `openNewStyle()` flow.
 - **C. A new color in an existing SKU** (`openNewColorOnExisting()` / `saveNewColor()`) — this is
-  the previously-reverted item 2, rebuilt: pick a style, the next letter (A, B, C…) is
-  auto-assigned (not editable), nothing else to fill in since sizes/images/MRP/cost are style-level
-  not per-color. Backend: `PATCH /api/styles/:code` gained an `add_color: true` flag that appends
-  the next letter server-side and re-syncs `skus` — no new route needed.
+  the previously-reverted item 2, rebuilt to match real practice: pick a style, and it creates a
+  whole **new sibling style row** (never mutates the source) with the next free letter for that
+  same category+number, copying name/category/sizes/MRP/cost/HSN/description from the source —
+  images are deliberately *not* copied, since a different colorway usually needs its own photos.
+  Backend: new `POST /api/styles/add-color-variant`.
 
 **Add Listing → 2 modes** (`openListingModeChooser()`):
 - **A. New listing** — unchanged `openAddListing()` form, minus the manual Master/Relisting `Type`
@@ -415,6 +429,12 @@ into a form, because each button was being asked to serve more than one real wor
   uses codes like `AOD-1A` / `AOD-1B` as fully independent styles with different pricing each.
   Surfaced 2026-08-20; not yet resolved. Don't assume either convention is "correct" — ask before
   building anything that depends on style-code-vs-SKU pricing semantics.
+  **Confirmed a second, broader way 2026-08-29:** while building "same pattern, new category"
+  (see above), checked real rows directly — `AISW-208A` has `colors:["Magenta"]` (a single real
+  name, not a letter), and `AOCS-15A`/`15B`/…/`15K` are 11 separate style rows, one per letter,
+  not one row with an 11-item colors array. This looks like the universal real pattern (one style
+  row per color, letter baked into the code) rather than an AOD-specific exception — the two new
+  style-creation flows above were built around this reality, not the documented one.
 - **Relisting prefix rule, given 2026-08-25 — implemented 2026-08-29.** See "New Style & New
   Listing creation flows" above for the shipped design (`openRelistExisting()`/`saveRelist()`,
   migration `0015_add_listing_relist_prefix.sql`). Still capped at `M`/`T` (2 relists) exactly as
