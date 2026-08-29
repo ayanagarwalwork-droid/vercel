@@ -17,4 +17,17 @@ async function syncSkusForStyle(styleCode, colors, sizes) {
   if (error) throw error;
 }
 
-module.exports = { syncSkusForStyle };
+// For the one-row-per-color style codes real catalog practice actually uses
+// (AISW-208A, AISW-208B… — see api/_lib/styleCodes.js) the color letter is
+// already the last character of styleCode itself, so appending it again
+// would double it up (AISW-208BB/L). The SKU is just styleCode + '/' +
+// size; `color` is still stored on the row (for filtering/EAN lookups) but
+// isn't repeated into the SKU string.
+async function syncSkusForColorCodedStyle(styleCode, color, sizes) {
+  const rows = sizes.map((size) => ({ sku: `${styleCode}/${size}`, style_code: styleCode, color, size }));
+  if (!rows.length) return;
+  const { error } = await supabaseAdmin.from('skus').upsert(rows, { onConflict: 'sku', ignoreDuplicates: true });
+  if (error) throw error;
+}
+
+module.exports = { syncSkusForStyle, syncSkusForColorCodedStyle };

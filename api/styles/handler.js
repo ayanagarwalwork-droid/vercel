@@ -20,7 +20,7 @@
 const { requireModulePermission, withErrorHandling, HttpError } = require('../_lib/auth');
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
 const { writeAudit } = require('../_lib/audit');
-const { syncSkusForStyle } = require('../_lib/skus');
+const { syncSkusForStyle, syncSkusForColorCodedStyle } = require('../_lib/skus');
 const { fetchAll } = require('../_lib/fetchAll');
 const { splitCode, nextAvailableCode } = require('../_lib/styleCodes');
 
@@ -135,7 +135,7 @@ module.exports = withErrorHandling(async (req, res) => {
     }
     if (error) throw new HttpError(500, error.message);
 
-    await syncSkusForStyle(newCode, [letter || 'A'], sizes);
+    await syncSkusForColorCodedStyle(newCode, letter || 'A', sizes);
 
     await writeAudit({
       profile: actor, action: 'create', entity: 'Style',
@@ -182,7 +182,7 @@ module.exports = withErrorHandling(async (req, res) => {
     }
     if (error) throw new HttpError(500, error.message);
 
-    await syncSkusForStyle(newCode, [letter], source.sizes);
+    await syncSkusForColorCodedStyle(newCode, letter, source.sizes);
 
     await writeAudit({
       profile: actor, action: 'create', entity: 'Style',
