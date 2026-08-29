@@ -371,6 +371,14 @@ this feature, since it's the same underlying ambiguity.
   uses codes like `AOD-1A` / `AOD-1B` as fully independent styles with different pricing each.
   Surfaced 2026-08-20; not yet resolved. Don't assume either convention is "correct" — ask before
   building anything that depends on style-code-vs-SKU pricing semantics.
+- **Relisting prefix rule, given 2026-08-25, not yet implemented:** when the same SKU is relisted
+  on a marketplace, the **Marketplace SKU and barcode** (not the core AOBA SKU) gets a letter
+  prefix — 1st listing: no prefix (`AIBW-001/L`); 2nd (first relist): prefix `M`
+  (`MAIBW-001/L`); 3rd: prefix `T` (`TAIBW-001/L`). Capped at 3 for now — the user said they'll
+  give the next letter/rule if a 4th+ relist ever comes up, don't extrapolate one. Needs a real
+  relist-count field on `listings` to implement (today's schema only has a binary
+  `type: 'master'|'relisting'`, not a count) — see the memory file for full context before
+  building this.
 
 ## Working-directory note (why this file exists)
 
