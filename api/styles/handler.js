@@ -6,11 +6,14 @@
 // GET    /api/styles              — full list. Requires view on Styles.
 // POST   /api/styles              — create via the SKU Engine RPC. Requires edit.
 // POST   /api/styles/upload-image — mint a signed Storage upload URL. Requires edit.
+// POST   /api/styles/same-pattern — create a style reusing an existing style's number
+//                                    in a new category (no counter draw). Requires edit.
 // GET    /api/styles/costing         — every style's cost-breakdown line items, flat. Requires view on Costing.
 // POST   /api/styles/costing         — replace one style's line items + its overhead %; always sets draft status. Requires edit on Costing.
 // POST   /api/styles/costing-approve — mark a style's costing approved/live. Founder only, regardless of Costing permission.
 // GET    /api/styles/:code        — one style. Requires view.
-// PATCH  /api/styles/:code        — edit name/status/hsn/mrp/cost/description/images/sizes. Requires edit.
+// PATCH  /api/styles/:code        — edit name/status/hsn/mrp/cost/description/images/sizes,
+//                                    or add_color:true to append the next letter color. Requires edit.
 // DELETE /api/styles/:code        — requires edit.
 const { requireModulePermission, withErrorHandling, HttpError } = require('../_lib/auth');
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
@@ -83,6 +86,60 @@ module.exports = withErrorHandling(async (req, res) => {
     if (error) throw new HttpError(500, error.message);
 
     return res.status(200).json({ data: { signedUrl: data.signedUrl, token: data.token, path } });
+  }
+
+  // POST /api/styles/same-pattern — reuse an existing style's pattern number
+  // in a different category (e.g. AISW-208's print, added to Beach Wear as
+  // AIBW-208). Deliberately does NOT call create_style_with_code / touch
+  // style_number_counters — the number is reused, not drawn fresh, so the
+  // styles.code primary key alone gives us race-safe duplicate protection
+  // (same 23505-catch pattern as the main POST handler above).
+  if (params.length === 1 && params[0] === 'same-pattern') {
+    if (req.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
+    const { profile: actor } = await requireModulePermission(req, 'Styles', 'edit');
+
+    const { source_code, category, name, description, sizes, colors } = req.body || {};
+    if (!source_code) throw new HttpError(400, 'Select a source style.');
+    if (!category) throw new HttpError(400, 'Select a category.');
+    if (!name || !String(name).trim()) throw new HttpError(400, 'Enter a style name.');
+    if (!Array.isArray(sizes) || !sizes.length) throw new HttpError(400, 'Select at least one size.');
+    const colorList = Array.isArray(colors) && colors.length ? colors : ['A'];
+
+    const { data: source, error: srcErr } = await supabaseAdmin
+      .from('styles').select('code, category').eq('code', source_code).maybeSingle();
+    if (srcErr) throw new HttpError(500, srcErr.message);
+    if (!source) throw new HttpError(404, `Source style not found: ${source_code}`);
+    if (source.category === category) throw new HttpError(400, 'Pick a different category than the source style.');
+
+    const numMatch = /-(\d+)$/.exec(source.code);
+    if (!numMatch) throw new HttpError(500, `Could not read a number from source code ${source.code}.`);
+    const newCode = `${category}-${numMatch[1]}`;
+
+    const { data: catRow } = await supabaseAdmin.from('categories').select('code').eq('code', category).maybeSingle();
+    if (!catRow) throw new HttpError(400, `Unknown category: ${category}`);
+
+    const { data, error } = await supabaseAdmin
+      .from('styles')
+      .insert({
+        code: newCode, name: String(name).trim(), category, status: 'active',
+        colors: colorList, sizes, description: description || null, created_by: actor.id,
+      })
+      .select().single();
+    if (error) {
+      if (error.code === '23505') {
+        throw new HttpError(409, `${newCode} already exists — this pattern is already listed in that category.`);
+      }
+      throw new HttpError(500, error.message);
+    }
+
+    await syncSkusForStyle(newCode, colorList, sizes);
+
+    await writeAudit({
+      profile: actor, action: 'create', entity: 'Style',
+      detail: `Created style ${newCode} — same pattern as ${source_code}, new category`,
+    });
+
+    return res.status(201).json({ data });
   }
 
   // GET/POST /api/styles/costing — bill-of-materials cost breakdown.
@@ -196,7 +253,7 @@ module.exports = withErrorHandling(async (req, res) => {
     if (findErr || !existing) throw new HttpError(404, 'Style not found.');
 
     if (req.method === 'PATCH') {
-      const { name, status, hsn_code, mrp, cost_price, description, images, sizes } = req.body || {};
+      const { name, status, hsn_code, mrp, cost_price, description, images, sizes, add_color } = req.body || {};
       if (name !== undefined && !String(name).trim()) throw new HttpError(400, 'Style name is required.');
       if (sizes !== undefined && (!Array.isArray(sizes) || !sizes.length)) {
         throw new HttpError(400, 'Select at least one size.');
@@ -214,6 +271,18 @@ module.exports = withErrorHandling(async (req, res) => {
       if (description !== undefined) patch.description = description;
       if (images !== undefined) patch.images = images;
       if (sizes !== undefined) patch.sizes = sizes;
+
+      // add_color: append the next letter (colors stay contiguous A,B,C… —
+      // see removeNsColor's re-lettering on the frontend — so the length
+      // alone tells us the next one). Letter-based per the Founder's
+      // explicit call, even though real catalog colors are full names —
+      // this only assigns the internal SKU letter, not a display name.
+      let newColors;
+      if (add_color) {
+        if (existing.colors.length >= 26) throw new HttpError(400, 'This style already has the maximum 26 colors.');
+        newColors = [...existing.colors, String.fromCharCode(65 + existing.colors.length)];
+        patch.colors = newColors;
+      }
       patch.updated_at = new Date().toISOString();
 
       const { data: updated, error } = await supabaseAdmin
@@ -221,10 +290,13 @@ module.exports = withErrorHandling(async (req, res) => {
       if (error) throw new HttpError(500, error.message);
 
       if (sizes !== undefined) await syncSkusForStyle(code, existing.colors, sizes);
+      if (add_color) await syncSkusForStyle(code, newColors, existing.sizes);
 
       await writeAudit({
         profile: actor, action: 'update', entity: 'Style',
-        detail: `Updated style ${code} — ${updated.name}`,
+        detail: add_color
+          ? `Added color ${newColors[newColors.length - 1]} to style ${code} — ${updated.name}`
+          : `Updated style ${code} — ${updated.name}`,
       });
 
       return res.status(200).json({ data: updated });

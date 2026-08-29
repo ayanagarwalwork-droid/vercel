@@ -3,8 +3,11 @@
 // function limit. URL paths the frontend calls are unchanged.
 //
 // GET    /api/listings     — full list. Requires view on Listings.
-// POST   /api/listings     — create a listing. Requires edit.
-// PATCH  /api/listings/:id — edit style_code/marketplace_sku/status/type/mrp/listing_url. Requires edit.
+// POST   /api/listings     — create a listing. Pass relist_prefix ('M'/'T') to create a
+//                            relisting — same sku+marketplace, a second/third row; type
+//                            and marketplace_sku are derived server-side. Requires edit.
+// PATCH  /api/listings/:id — edit style_code/marketplace_sku/status/type/mrp/listing_url.
+//                            relist_prefix is immutable once created. Requires edit.
 // DELETE /api/listings/:id — requires edit.
 const { requireModulePermission, withErrorHandling, HttpError } = require('../_lib/auth');
 const { supabaseAdmin } = require('../_lib/supabaseAdmin');
@@ -29,20 +32,38 @@ module.exports = withErrorHandling(async (req, res) => {
     if (req.method === 'POST') {
       const { profile: actor } = await requireModulePermission(req, 'Listings', 'edit');
 
-      const { sku, style_code, marketplace, marketplace_sku, type, status, mrp, listing_url } = req.body || {};
+      const { sku, style_code, marketplace, marketplace_sku, status, mrp, listing_url, relist_prefix } = req.body || {};
       if (!sku) throw new HttpError(400, 'AOBA SKU is required.');
       if (!marketplace) throw new HttpError(400, 'Select a marketplace.');
 
+      // relist_prefix drives both `type` and the uniqueness key — a
+      // relisting is a second/third row for the SAME sku+marketplace, so
+      // type is derived here rather than trusted from the client. Capped at
+      // '' (master) / 'M' (1st relist) / 'T' (2nd relist) per the Founder's
+      // explicit rule — no 4th value exists yet, don't invent one.
+      const prefix = relist_prefix || '';
+      if (!['', 'M', 'T'].includes(prefix)) throw new HttpError(400, 'Invalid relisting prefix.');
+      const type = prefix ? 'relisting' : 'master';
+
       const { data: existing } = await supabaseAdmin
-        .from('listings').select('id').eq('sku', sku).eq('marketplace', marketplace).maybeSingle();
-      if (existing) throw new HttpError(409, 'This SKU + marketplace combination already exists.');
+        .from('listings').select('id').eq('sku', sku).eq('marketplace', marketplace).eq('relist_prefix', prefix).maybeSingle();
+      if (existing) {
+        throw new HttpError(409, prefix
+          ? `This SKU already has a ${prefix}-prefixed relisting on ${marketplace}.`
+          : 'This SKU + marketplace combination already exists.');
+      }
 
       const finalStatus = status || 'draft';
+      // Marketplace SKU is derived directly from the AOBA SKU (see the
+      // relisting-rule note in PROGRESS.md) — defaults to prefix+sku (or
+      // bare sku for a master) when left blank, but stays editable for
+      // real-world marketplace quirks.
+      const finalMarketplaceSku = marketplace_sku || (prefix ? prefix + sku : sku);
       const { data, error } = await supabaseAdmin
         .from('listings')
         .insert({
           sku, style_code: style_code || null, marketplace,
-          marketplace_sku: marketplace_sku || null, type: type || 'master',
+          marketplace_sku: finalMarketplaceSku, type, relist_prefix: prefix,
           status: finalStatus, mrp: mrp || null, listing_url: listing_url || null,
           launch_date: finalStatus === 'live' ? new Date().toISOString().slice(0, 10) : null,
         })
@@ -51,7 +72,9 @@ module.exports = withErrorHandling(async (req, res) => {
 
       await writeAudit({
         profile: actor, action: 'create', entity: 'Listing',
-        detail: `Added listing ${sku} on ${marketplace}`,
+        detail: prefix
+          ? `Relisted ${sku} on ${marketplace} (${prefix}-prefix)`
+          : `Added listing ${sku} on ${marketplace}`,
       });
 
       return res.status(201).json({ data });

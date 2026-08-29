@@ -1032,6 +1032,21 @@
     /* 28 · ADD LISTING MODAL GRID */
     .al-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 
+    /* 28b · MODE CHOICE CARDS (New Style / Add Listing pre-step choosers) */
+    .mode-choice-card {
+      display: block; width: 100%; text-align: left; cursor: pointer;
+      border: 1px solid var(--border); background: var(--surface); border-radius: 6px;
+      padding: 14px 16px; margin-bottom: 10px; font: inherit; color: inherit;
+    }
+    .mode-choice-card:last-child { margin-bottom: 0; }
+    .mode-choice-card:hover { border-color: var(--accent); background: var(--accent-bg); }
+    .mode-choice-card .mcc-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 3px; }
+    .mode-choice-card .mcc-desc { font-size: 12px; color: var(--text3); }
+    .mode-choice-card:disabled, .mode-choice-card.disabled { opacity: 0.5; cursor: not-allowed; }
+    .mode-choice-card:disabled:hover, .mode-choice-card.disabled:hover { border-color: var(--border); background: var(--surface); }
+    .ro-summary { border: 1px solid var(--border); background: var(--surface2); border-radius: 6px; padding: 12px 14px; font-size: 12px; color: var(--text2); margin-bottom: 14px; line-height: 1.7; }
+    .ro-summary b { color: var(--text); }
+
     /* 29 · STYLE IMAGE GALLERY */
     .style-thumb { width:40px; height:40px; object-fit:cover; border-radius:6px; border:1px solid var(--border); flex-shrink:0; }
     .style-thumb-empty { width:40px; height:40px; border:1px dashed var(--border2); border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--text3); font-size:16px; flex-shrink:0; }
@@ -1530,7 +1545,7 @@
           </select>
           <div style="margin-left:auto;display:flex;gap:8px">
             <button class="btn btn-outline" onclick="exportStyles()">↓ Export CSV</button>
-            <button class="btn btn-dark" onclick="openNewStyle()">+ New Style</button>
+            <button class="btn btn-dark" onclick="openStyleModeChooser()">+ New Style</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -1575,7 +1590,7 @@
           </select>
           <div style="margin-left:auto;display:flex;gap:8px">
             <button class="btn btn-outline" onclick="exportListings()">↓ Export CSV</button>
-            <button class="btn btn-dark" onclick="openAddListing()">+ Add Listing</button>
+            <button class="btn btn-dark" onclick="openListingModeChooser()">+ Add Listing</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -2203,22 +2218,13 @@
         <input type="text" id="alMktSku" placeholder="e.g. MYN-AIBW-001A-XS" />
       </div>
     </div>
-    <div class="al-grid" style="margin-top:12px">
-      <div class="field" style="margin-bottom:0">
-        <label>Status</label>
-        <select id="alStatus">
-          <option value="draft">Draft</option>
-          <option value="pending">Pending</option>
-          <option value="live">Live</option>
-        </select>
-      </div>
-      <div class="field" style="margin-bottom:0">
-        <label>Type</label>
-        <select id="alType">
-          <option value="master">Master</option>
-          <option value="relisting">Relisting</option>
-        </select>
-      </div>
+    <div class="field" style="margin-top:12px;margin-bottom:0">
+      <label>Status</label>
+      <select id="alStatus">
+        <option value="draft">Draft</option>
+        <option value="pending">Pending</option>
+        <option value="live">Live</option>
+      </select>
     </div>
     <div class="al-grid" style="margin-top:12px">
       <div class="field" style="margin-bottom:0">
@@ -2234,6 +2240,86 @@
     <div class="modal-foot">
       <button class="btn btn-outline" onclick="closeAddListing()">Cancel</button>
       <button class="btn btn-dark" onclick="saveListing()">Add Listing</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADD LISTING — MODE CHOOSER ═══════════════════════════════════════ -->
+<div class="overlay" id="listingModeChooserModal" onclick="if(event.target===this)closeListingModeChooser()">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head">
+      <div class="modal-title">Add Listing</div>
+      <button class="modal-close" onclick="closeListingModeChooser()">✕</button>
+    </div>
+    <button type="button" class="mode-choice-card" onclick="chooseListingMode('new')">
+      <div class="mcc-title">A. New listing</div>
+      <div class="mcc-desc">A fresh listing on a marketplace — fill in every field.</div>
+    </button>
+    <button type="button" class="mode-choice-card" onclick="chooseListingMode('relist')">
+      <div class="mcc-title">B. Relisting of an existing listing</div>
+      <div class="mcc-desc">The same SKU relisted on the same marketplace — prefixes the Marketplace SKU (M / T) and prefills the rest.</div>
+    </button>
+  </div>
+</div>
+
+<!-- ═══ RELIST EXISTING LISTING MODAL ════════════════════════════════════ -->
+<div class="overlay" id="relistModal" onclick="if(event.target===this)closeRelist()">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-head">
+      <div class="modal-title">Relist an Existing Listing</div>
+      <button class="modal-close" onclick="closeRelist()">✕</button>
+    </div>
+    <div class="field">
+      <label>Existing Listing</label>
+      <select id="rlSource" onchange="onRlSourceChange()">
+        <option value="">— Select a listing —</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Which relisting is this?</label>
+      <select id="rlPrefix" onchange="onRlPrefixChange()">
+        <option value="">— Select —</option>
+        <option value="M">1st relisting (prefix M)</option>
+        <option value="T">2nd relisting (prefix T)</option>
+      </select>
+    </div>
+    <div id="rlCappedNote" class="modal-error" style="display:none">This listing has already been relisted twice (M and T) — no rule exists yet for a further relisting. Check with the Founder before proceeding.</div>
+    <div class="al-grid" style="margin-top:4px">
+      <div class="field" style="margin-bottom:0">
+        <label>AOBA SKU</label>
+        <input type="text" id="rlSku" disabled />
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>Marketplace</label>
+        <input type="text" id="rlMarketplace" disabled />
+      </div>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <label>Marketplace SKU</label>
+      <input type="text" id="rlMktSku" placeholder="Derived from the AOBA SKU — editable" />
+    </div>
+    <div class="al-grid" style="margin-top:12px">
+      <div class="field" style="margin-bottom:0">
+        <label>Status</label>
+        <select id="rlStatus">
+          <option value="draft">Draft</option>
+          <option value="pending">Pending</option>
+          <option value="live">Live</option>
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>MRP (₹)</label>
+        <input type="number" id="rlMrp" placeholder="e.g. 899" min="0" />
+      </div>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <label>Listing URL <span style="font-size:10px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label>
+      <input type="url" id="rlUrl" placeholder="https://www.myntra.com/…" />
+    </div>
+    <div class="modal-error" id="rlError"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeRelist()">Cancel</button>
+      <button class="btn btn-dark" id="rlSaveBtn" onclick="saveRelist()">Relist</button>
     </div>
   </div>
 </div>
@@ -2293,6 +2379,118 @@
     <div class="modal-foot">
       <button class="btn btn-outline" onclick="closeNewStyle()">Cancel</button>
       <button class="btn btn-dark" onclick="saveNewStyle()">Create Style</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NEW STYLE — MODE CHOOSER ═════════════════════════════════════════ -->
+<div class="overlay" id="styleModeChooserModal" onclick="if(event.target===this)closeStyleModeChooser()">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head">
+      <div class="modal-title">New Style</div>
+      <button class="modal-close" onclick="closeStyleModeChooser()">✕</button>
+    </div>
+    <button type="button" class="mode-choice-card" onclick="chooseStyleMode('same-pattern')">
+      <div class="mcc-title">A. New listing on an existing pattern</div>
+      <div class="mcc-desc">Same design, a different category — reuses the pattern's number (e.g. AISW-208 → AIBW-208).</div>
+    </button>
+    <button type="button" class="mode-choice-card" onclick="chooseStyleMode('new-design')">
+      <div class="mcc-title">B. A completely new listing</div>
+      <div class="mcc-desc">A brand-new pattern from scratch, with its own new SKU number.</div>
+    </button>
+    <button type="button" class="mode-choice-card" onclick="chooseStyleMode('new-color')">
+      <div class="mcc-title">C. A new color in an existing SKU</div>
+      <div class="mcc-desc">Add another colorway to a style that already exists.</div>
+    </button>
+  </div>
+</div>
+
+<!-- ═══ SAME PATTERN, NEW CATEGORY MODAL ════════════════════════════════ -->
+<div class="overlay" id="samePatternModal" onclick="if(event.target===this)closeSamePattern()">
+  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">
+    <div class="modal-head">
+      <div class="modal-title">Same Pattern, New Category</div>
+      <button class="modal-close" onclick="closeSamePattern()">✕</button>
+    </div>
+    <div class="field">
+      <label>Existing Pattern (Style)</label>
+      <select id="spSource" onchange="onSpSourceChange()">
+        <option value="">— Select an existing style —</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;margin-bottom:18px">
+      <div class="field" style="margin-bottom:0">
+        <label>New Category</label>
+        <select id="spCategory" onchange="updateSamePatternPreview()">
+          <option value="">— Select category —</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Style Name</label>
+      <input type="text" id="spName" placeholder="e.g. Printed Floral Lace Set" />
+    </div>
+    <div class="field">
+      <label>Description <span style="font-size:10px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label>
+      <input type="text" id="spDescription" placeholder="Carried over from the source style — editable" />
+    </div>
+    <div style="display:flex;gap:16px">
+      <div class="field" style="flex:1">
+        <label>Colors</label>
+        <div class="color-picker-wrap">
+          <div class="color-picker-chips" id="spColorChips"></div>
+          <button type="button" class="color-add-btn" onclick="addSpColor()">+ Add Color</button>
+        </div>
+      </div>
+      <div class="field" style="flex:1">
+        <label>Sizes</label>
+        <div class="size-picker-wrap" id="spSizePicker">
+          <label class="size-cb-label"><input type="checkbox" value="S"   onchange="updateSamePatternPreview()"> S</label>
+          <label class="size-cb-label"><input type="checkbox" value="M"   onchange="updateSamePatternPreview()"> M</label>
+          <label class="size-cb-label"><input type="checkbox" value="L"   onchange="updateSamePatternPreview()"> L</label>
+          <label class="size-cb-label"><input type="checkbox" value="XL"  onchange="updateSamePatternPreview()"> XL</label>
+          <label class="size-cb-label"><input type="checkbox" value="XXL" onchange="updateSamePatternPreview()"> XXL</label>
+          <label class="size-cb-label"><input type="checkbox" value="ONE" onchange="updateSamePatternPreview()"> ONE</label>
+        </div>
+      </div>
+    </div>
+    <div class="ns-code-row" id="spCodeRow" style="display:none">
+      <div>
+        <div class="ns-code-label">New Style Code</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Same pattern number, new category</div>
+      </div>
+      <div class="ns-code-val" id="spCodeVal">—</div>
+    </div>
+    <div id="spSkuPreview" style="display:none;margin-top:14px">
+      <div class="ns-sku-label">SKUs that will be created</div>
+      <div class="ns-sku-chips" id="spSkuChips"></div>
+    </div>
+    <div class="modal-error" id="spError"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeSamePattern()">Cancel</button>
+      <button class="btn btn-dark" onclick="saveSamePattern()">Create Style</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NEW COLOR ON EXISTING SKU MODAL ══════════════════════════════════ -->
+<div class="overlay" id="newColorModal" onclick="if(event.target===this)closeNewColor()">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-head">
+      <div class="modal-title">New Color on Existing SKU</div>
+      <button class="modal-close" onclick="closeNewColor()">✕</button>
+    </div>
+    <div class="field">
+      <label>Existing Style</label>
+      <select id="ncSource" onchange="updateNewColorPreview()">
+        <option value="">— Select an existing style —</option>
+      </select>
+    </div>
+    <div id="ncSummary" class="ro-summary" style="display:none"></div>
+    <div class="modal-error" id="ncError"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeNewColor()">Cancel</button>
+      <button class="btn btn-dark" onclick="saveNewColor()">Add Color</button>
     </div>
   </div>
 </div>
@@ -2947,7 +3145,7 @@ function mapListingFromApi(l) {
     id: l.id, sku: l.sku, styleCode: l.style_code, style: l.style_code,
     category: (l.style_code || '').replace(/-\d.*$/, ''),
     marketplace: l.marketplace, marketplaceSku: l.marketplace_sku, marketplaceStyleId: '',
-    type: l.type, status: l.status, mrp: l.mrp, listingUrl: l.listing_url,
+    type: l.type, relistPrefix: l.relist_prefix || '', status: l.status, mrp: l.mrp, listingUrl: l.listing_url,
     launchDate: l.launch_date,
   };
 }
@@ -3690,7 +3888,7 @@ function renderListings() {
       <td>${mrpCell}</td>
       <td><span class="lst-tag ${stCls}">${l.status.charAt(0).toUpperCase()+l.status.slice(1)}</span></td>
       <td style="font-size:12px">${launch}</td>
-      <td style="white-space:nowrap">${urlCell} <button class="tbl-btn" style="margin-left:4px" onclick="openEditListing('${l.sku}','${l.marketplace}')">Edit</button></td>
+      <td style="white-space:nowrap">${urlCell} <button class="tbl-btn" style="margin-left:4px" onclick="openEditListing('${l.id}')">Edit</button></td>
     </tr>`;
   }).join('');
   renderListingsCatChips();
@@ -4475,6 +4673,307 @@ async function saveNewStyle() {
   renderStyles();
   renderDashboard();
   toast('Style created: ' + res.data.code, 'success');
+}
+
+// ── NEW STYLE — MODE CHOOSER ────────────────────────────────────────────────
+function openStyleModeChooser() {
+  document.getElementById('styleModeChooserModal').classList.add('open');
+}
+function closeStyleModeChooser() {
+  document.getElementById('styleModeChooserModal').classList.remove('open');
+}
+function chooseStyleMode(mode) {
+  closeStyleModeChooser();
+  if (mode === 'same-pattern') openSamePattern();
+  else if (mode === 'new-color') openNewColorOnExisting();
+  else openNewStyle();
+}
+
+// ── SAME PATTERN, NEW CATEGORY ──────────────────────────────────────────────
+let spColors = ['A'];
+
+function openSamePattern() {
+  const sel = document.getElementById('spSource');
+  sel.innerHTML = '<option value="">— Select an existing style —</option>' +
+    STYLES_DATA.map(s => `<option value="${s.code}">${s.code} — ${s.name}</option>`).join('');
+  spColors = ['A'];
+  renderSpColors();
+  document.getElementById('spName').value = '';
+  document.getElementById('spDescription').value = '';
+  document.getElementById('spCategory').innerHTML = '<option value="">— Select category —</option>';
+  document.getElementById('spCodeRow').style.display = 'none';
+  document.getElementById('spSkuPreview').style.display = 'none';
+  document.getElementById('spError').textContent = '';
+  document.querySelectorAll('#spSizePicker input').forEach(cb => cb.checked = false);
+  document.getElementById('samePatternModal').classList.add('open');
+  setTimeout(() => sel.focus(), 120);
+}
+
+function closeSamePattern() {
+  document.getElementById('samePatternModal').classList.remove('open');
+}
+
+function onSpSourceChange() {
+  const code = document.getElementById('spSource').value;
+  const catSel = document.getElementById('spCategory');
+  const source = STYLES_DATA.find(s => s.code === code);
+  if (!source) {
+    catSel.innerHTML = '<option value="">— Select category —</option>';
+    updateSamePatternPreview();
+    return;
+  }
+  // Name + Description carry over (editable); sizes/images/costing stay
+  // fresh for the new category, per the Founder's explicit call.
+  document.getElementById('spName').value = source.name || '';
+  document.getElementById('spDescription').value = source.description || '';
+  catSel.innerHTML = '<option value="">— Select category —</option>' +
+    CATEGORIES.filter(c => c.code !== source.category).map(c => {
+      const grpStr = c.group !== null ? ` (Group ${c.group})` : ' (Standalone)';
+      return `<option value="${c.code}">${c.code} — ${c.name}${grpStr}</option>`;
+    }).join('');
+  updateSamePatternPreview();
+}
+
+function renderSpColors() {
+  document.getElementById('spColorChips').innerHTML = spColors.map((c, i) =>
+    `<span class="color-chip">${c}<button type="button" class="color-chip-remove" onclick="removeSpColor(${i})">✕</button></span>`
+  ).join('');
+  updateSamePatternPreview();
+}
+function addSpColor() {
+  if (spColors.length >= 26) return;
+  spColors.push(String.fromCharCode(65 + spColors.length));
+  renderSpColors();
+}
+function removeSpColor(i) {
+  if (spColors.length <= 1) return;
+  spColors.splice(i, 1);
+  spColors = spColors.map((_, idx) => String.fromCharCode(65 + idx));
+  renderSpColors();
+}
+
+function updateSamePatternPreview() {
+  const sourceCode = document.getElementById('spSource').value;
+  const cat = document.getElementById('spCategory').value;
+  const codeRow = document.getElementById('spCodeRow');
+  const previewEl = document.getElementById('spSkuPreview');
+  const numMatch = /-(\d+)$/.exec(sourceCode || '');
+  if (!sourceCode || !cat || !numMatch) {
+    codeRow.style.display = 'none';
+    previewEl.style.display = 'none';
+    return;
+  }
+  const newCode = `${cat}-${numMatch[1]}`;
+  document.getElementById('spCodeVal').textContent = newCode;
+  codeRow.style.display = 'flex';
+
+  const sizes = Array.from(document.querySelectorAll('#spSizePicker input:checked')).map(cb => cb.value);
+  if (!sizes.length) { previewEl.style.display = 'none'; return; }
+  const skus = spColors.flatMap(color => sizes.map(size => `${newCode}${color}/${size}`));
+  document.getElementById('spSkuChips').innerHTML = skus.map(s => `<span class="aoba-sku-tag">${s}</span>`).join('');
+  previewEl.style.display = 'block';
+}
+
+async function saveSamePattern() {
+  const sourceCode = document.getElementById('spSource').value;
+  const cat = document.getElementById('spCategory').value;
+  const name = document.getElementById('spName').value.trim();
+  const description = document.getElementById('spDescription').value.trim();
+  const sizes = Array.from(document.querySelectorAll('#spSizePicker input:checked')).map(cb => cb.value);
+  const err = document.getElementById('spError');
+  if (!sourceCode) { err.textContent = 'Select an existing style.'; return; }
+  if (!cat)        { err.textContent = 'Select a category.'; return; }
+  if (!name)       { err.textContent = 'Enter a style name.'; return; }
+  if (!sizes.length) { err.textContent = 'Select at least one size.'; return; }
+
+  let res;
+  try {
+    res = await api.post('/api/styles/same-pattern', {
+      source_code: sourceCode, category: cat, name, description,
+      sizes, colors: [...spColors],
+    });
+  } catch (e) {
+    err.textContent = e.message || 'Failed to create style.';
+    return;
+  }
+  STYLES_DATA.push(mapStyleFromApi(res.data));
+  closeSamePattern();
+  renderStyles();
+  renderDashboard();
+  toast('Style created: ' + res.data.code, 'success');
+}
+
+// ── NEW COLOR ON EXISTING SKU ────────────────────────────────────────────────
+function openNewColorOnExisting() {
+  const sel = document.getElementById('ncSource');
+  sel.innerHTML = '<option value="">— Select an existing style —</option>' +
+    STYLES_DATA.map(s => `<option value="${s.code}">${s.code} — ${s.name}</option>`).join('');
+  document.getElementById('ncSummary').style.display = 'none';
+  document.getElementById('ncError').textContent = '';
+  document.getElementById('newColorModal').classList.add('open');
+  setTimeout(() => sel.focus(), 120);
+}
+
+function closeNewColor() {
+  document.getElementById('newColorModal').classList.remove('open');
+}
+
+function updateNewColorPreview() {
+  const code = document.getElementById('ncSource').value;
+  const summary = document.getElementById('ncSummary');
+  const err = document.getElementById('ncError');
+  err.textContent = '';
+  const s = STYLES_DATA.find(x => x.code === code);
+  if (!s) { summary.style.display = 'none'; return; }
+  if ((s.colors || []).length >= 26) {
+    summary.style.display = 'none';
+    err.textContent = 'This style already has the maximum 26 colors.';
+    return;
+  }
+  const nextColor = String.fromCharCode(65 + (s.colors || []).length);
+  summary.innerHTML =
+    `<b>${s.code}</b> — ${s.name}<br>` +
+    `Category: <b>${s.category}</b> &nbsp;·&nbsp; Sizes: <b>${(s.sizes||[]).join(', ')}</b><br>` +
+    `MRP: <b>${s.mrp ? '₹'+s.mrp : '—'}</b> &nbsp;·&nbsp; Cost Price: <b>${s.costPrice ? '₹'+s.costPrice : '—'}</b><br>` +
+    `Current colors: <b>${(s.colors||[]).join(', ')}</b><br>` +
+    `New color to add: <b>${nextColor}</b>`;
+  summary.style.display = 'block';
+}
+
+async function saveNewColor() {
+  const code = document.getElementById('ncSource').value;
+  const err = document.getElementById('ncError');
+  if (!code) { err.textContent = 'Select an existing style.'; return; }
+
+  let res;
+  try {
+    res = await api.patch(`/api/styles/${code}`, { add_color: true });
+  } catch (e) {
+    err.textContent = e.message || 'Failed to add color.';
+    return;
+  }
+  const s = STYLES_DATA.find(x => x.code === code);
+  if (s) Object.assign(s, mapStyleFromApi(res.data));
+  const addedColor = res.data.colors[res.data.colors.length - 1];
+  closeNewColor();
+  renderStyles();
+  toast(`Added color ${addedColor} to ${code}.`, 'success');
+}
+
+// ── ADD LISTING — MODE CHOOSER ──────────────────────────────────────────────
+function openListingModeChooser() {
+  document.getElementById('listingModeChooserModal').classList.add('open');
+}
+function closeListingModeChooser() {
+  document.getElementById('listingModeChooserModal').classList.remove('open');
+}
+function chooseListingMode(mode) {
+  closeListingModeChooser();
+  if (mode === 'relist') openRelistExisting();
+  else openAddListing();
+}
+
+// ── RELIST AN EXISTING LISTING ──────────────────────────────────────────────
+function openRelistExisting() {
+  const sel = document.getElementById('rlSource');
+  // One entry per distinct (sku, marketplace) pair — prefer the master row
+  // for the label/prefill if one exists, else whichever row is found first.
+  // The option's value is that row's own id, so saveRelist always has a
+  // real, non-empty style_code to send (that column is NOT NULL).
+  const seen = new Map();
+  LISTINGS_DATA.forEach(l => {
+    const key = l.sku + '|' + l.marketplace;
+    if (!seen.has(key) || (l.relistPrefix || '') === '') seen.set(key, l);
+  });
+  sel.innerHTML = '<option value="">— Select a listing —</option>' +
+    [...seen.values()].map(l => `<option value="${l.id}">${l.sku} — ${l.marketplace}</option>`).join('');
+  document.getElementById('rlPrefix').innerHTML =
+    '<option value="">— Select —</option><option value="M">1st relisting (prefix M)</option><option value="T">2nd relisting (prefix T)</option>';
+  document.getElementById('rlCappedNote').style.display = 'none';
+  document.getElementById('rlSaveBtn').disabled = false;
+  ['rlSku', 'rlMarketplace', 'rlMktSku', 'rlMrp', 'rlUrl'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('rlStatus').value = 'draft';
+  document.getElementById('rlError').textContent = '';
+  document.getElementById('relistModal').classList.add('open');
+  setTimeout(() => sel.focus(), 120);
+}
+
+function closeRelist() {
+  document.getElementById('relistModal').classList.remove('open');
+}
+
+function onRlSourceChange() {
+  const id = document.getElementById('rlSource').value;
+  const prefixSel = document.getElementById('rlPrefix');
+  const cappedNote = document.getElementById('rlCappedNote');
+  const saveBtn = document.getElementById('rlSaveBtn');
+  if (!id) return;
+  const source = LISTINGS_DATA.find(l => l.id === id);
+  if (!source) return;
+  const { sku, marketplace } = source;
+  document.getElementById('rlSku').value = sku;
+  document.getElementById('rlMarketplace').value = marketplace;
+  document.getElementById('rlStatus').value = source.status || 'draft';
+  document.getElementById('rlMrp').value = source.mrp || '';
+  document.getElementById('rlUrl').value = source.listingUrl || '';
+  document.getElementById('rlMktSku').value = '';
+
+  const taken = new Set(LISTINGS_DATA.filter(l => l.sku === sku && l.marketplace === marketplace).map(l => l.relistPrefix || ''));
+  const mOpt = prefixSel.querySelector('option[value="M"]');
+  const tOpt = prefixSel.querySelector('option[value="T"]');
+  mOpt.disabled = taken.has('M');
+  tOpt.disabled = taken.has('T');
+  if (taken.has('M') && taken.has('T')) {
+    cappedNote.style.display = 'block';
+    saveBtn.disabled = true;
+    prefixSel.value = '';
+  } else {
+    cappedNote.style.display = 'none';
+    saveBtn.disabled = false;
+    prefixSel.value = taken.has('M') ? 'T' : 'M';
+  }
+  onRlPrefixChange();
+}
+
+function onRlPrefixChange() {
+  const sku = document.getElementById('rlSku').value;
+  const prefix = document.getElementById('rlPrefix').value;
+  const mktSkuEl = document.getElementById('rlMktSku');
+  if (sku && prefix && !mktSkuEl.value) {
+    mktSkuEl.value = prefix + sku;
+  }
+}
+
+async function saveRelist() {
+  const id = document.getElementById('rlSource').value;
+  const prefix = document.getElementById('rlPrefix').value;
+  const err = document.getElementById('rlError');
+  if (!id)     { err.textContent = 'Select a listing to relist.'; return; }
+  if (!prefix) { err.textContent = 'Select whether this is the 1st or 2nd relisting.'; return; }
+  const source = LISTINGS_DATA.find(l => l.id === id);
+  if (!source) { err.textContent = 'That listing could not be found — reopen this dialog and try again.'; return; }
+  const { sku, marketplace, styleCode } = source;
+  const mktSku = document.getElementById('rlMktSku').value.trim();
+  const status = document.getElementById('rlStatus').value;
+  const mrp = document.getElementById('rlMrp').value.trim();
+  const url = document.getElementById('rlUrl').value.trim();
+
+  let res;
+  try {
+    res = await api.post('/api/listings', {
+      sku, style_code: styleCode, marketplace,
+      marketplace_sku: mktSku, relist_prefix: prefix, status, mrp, listing_url: url,
+    });
+  } catch (e) {
+    err.textContent = e.message || 'Failed to relist.';
+    return;
+  }
+  LISTINGS_DATA.push(mapListingFromApi(res.data));
+  closeRelist();
+  renderListings();
+  renderDashboard();
+  renderEAN();
+  toast(`Relisted ${sku} on ${marketplace} (${prefix}-prefix).`, 'success');
 }
 
 // ── EAN — one row per SKU (style+color+size), independent of Listings ─────
@@ -5558,14 +6057,13 @@ function clearCatalogData() {
 }
 
 // ── ADD LISTING MODAL ─────────────────────────────────────────────────────
-let _editListingKey = null; // null = add mode, 'sku::mkt' = edit mode
+let _editListingId = null; // null = add mode, listing id = edit mode
 
 function openAddListing() {
-  _editListingKey = null;
+  _editListingId = null;
   ['alSku','alStyleId','alMktSku','alMrp','alUrl'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('alMarketplace').value = '';
   document.getElementById('alStatus').value = 'draft';
-  document.getElementById('alType').value = 'master';
   document.getElementById('alErr').textContent = '';
   document.querySelector('#addListingModal .modal-title').textContent = 'Add Listing';
   document.querySelector('#addListingModal .btn-dark').textContent = 'Add Listing';
@@ -5574,16 +6072,15 @@ function openAddListing() {
   document.getElementById('addListingModal').classList.add('open');
   setTimeout(() => document.getElementById('alSku').focus(), 120);
 }
-function openEditListing(sku, mkt) {
-  const l = LISTINGS_DATA.find(x => x.sku === sku && x.marketplace === mkt);
+function openEditListing(id) {
+  const l = LISTINGS_DATA.find(x => x.id === id);
   if (!l) return;
-  _editListingKey = sku + '::' + mkt;
+  _editListingId = id;
   document.getElementById('alSku').value = l.sku;
   document.getElementById('alStyleId').value = l.styleCode || l.style || '';
   document.getElementById('alMarketplace').value = l.marketplace;
   document.getElementById('alMktSku').value = l.marketplaceSku || '';
   document.getElementById('alStatus').value = l.status || 'draft';
-  document.getElementById('alType').value = l.type || 'master';
   document.getElementById('alMrp').value = l.mrp || '';
   document.getElementById('alUrl').value = l.listingUrl || '';
   document.getElementById('alErr').textContent = '';
@@ -5604,33 +6101,34 @@ async function saveListing() {
   const mkt     = document.getElementById('alMarketplace').value;
   const mktSku  = document.getElementById('alMktSku').value.trim();
   const status  = document.getElementById('alStatus').value;
-  const type    = document.getElementById('alType').value;
   const mrp     = document.getElementById('alMrp').value.trim();
   const url     = document.getElementById('alUrl').value.trim();
   const err     = document.getElementById('alErr');
   if (!sku) { err.textContent = 'AOBA SKU is required.'; return; }
   if (!mkt) { err.textContent = 'Select a marketplace.'; return; }
 
-  if (_editListingKey) {
-    const l = LISTINGS_DATA.find(x => x.sku === sku && x.marketplace === mkt);
+  if (_editListingId) {
+    const l = LISTINGS_DATA.find(x => x.id === _editListingId);
     if (!l) return;
     let res;
     try {
       res = await api.patch(`/api/listings/${l.id}`, {
-        style_code: styleId, marketplace_sku: mktSku, status, type, mrp, listing_url: url,
+        style_code: styleId, marketplace_sku: mktSku, status, mrp, listing_url: url,
       });
     } catch (e) { err.textContent = e.message || 'Failed to update listing.'; return; }
     Object.assign(l, mapListingFromApi(res.data));
     closeAddListing(); renderListings(); renderDashboard(); renderEAN();
     toast('Listing updated.', 'success');
   } else {
-    if (LISTINGS_DATA.find(l => l.sku === sku && l.marketplace === mkt)) {
+    // This form only ever creates masters (relist_prefix '') — relistings go
+    // through the separate "Relist an Existing Listing" flow.
+    if (LISTINGS_DATA.find(l => l.sku === sku && l.marketplace === mkt && (l.relistPrefix || '') === '')) {
       err.textContent = 'This SKU + marketplace combination already exists.'; return;
     }
     let res;
     try {
       res = await api.post('/api/listings', {
-        sku, style_code: styleId, marketplace: mkt, marketplace_sku: mktSku, type, status, mrp, listing_url: url,
+        sku, style_code: styleId, marketplace: mkt, marketplace_sku: mktSku, status, mrp, listing_url: url,
       });
     } catch (e) { err.textContent = e.message || 'Failed to add listing.'; return; }
     LISTINGS_DATA.push(mapListingFromApi(res.data));

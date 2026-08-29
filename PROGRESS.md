@@ -277,7 +277,7 @@ Storing it back in Supabase Storage today protects against a corrupted or accide
 row, but *not* against losing the Supabase account itself — worth remembering that's still an
 open gap until it moves off-platform.
 
-## Founder-requested items (2026-08-25) — 4 shipped, 1 held back
+## Founder-requested items (2026-08-25) — all 5 shipped (item 2 rebuilt 2026-08-29, see below)
 
 Five items were requested together; #2 ("New Color of Existing Style") was built, tested, then
 **deliberately reverted** on request — the user wants to make changes to it before it ships, so
@@ -337,6 +337,50 @@ documented-rule-vs-real-practice mismatch already flagged in the SKU naming memo
 confirmed a second way — worth resolving that question generally before or alongside rebuilding
 this feature, since it's the same underlying ambiguity.
 
+**Update 2026-08-29 — rebuilt and shipped, letter-based.** The Founder confirmed auto-assigned
+colors should stay letter-based (A, B, C…) rather than switching to real color names, so the
+ambiguity above is resolved for *auto-generated* colors specifically (the letter is just the
+internal SKU suffix, not a display name — real full-name colors elsewhere are untouched). See
+"New Style & New Listing creation flows" below for the actual shipped design.
+
+## New Style & New Listing creation flows (2026-08-29)
+
+Both "+ New Style" and "+ Add Listing" now open a mode-chooser first instead of jumping straight
+into a form, because each button was being asked to serve more than one real workflow.
+
+**New Style → 3 modes** (`openStyleModeChooser()`):
+- **A. New listing on an existing pattern** (`openSamePattern()` / `saveSamePattern()`) — pick an
+  existing style, pick a *different* category, and the same pattern number carries over
+  (`AISW-208` → `AIBW-208`). Only Name + Description prefill from the source (editable); sizes,
+  images, and costing are fresh for the new category. Backend: new
+  `POST /api/styles/same-pattern` — deliberately bypasses the `create_style_with_code` RPC and
+  `style_number_counters` entirely (the number is reused, not drawn fresh), relying on the
+  `styles.code` primary key for race-safe duplicate protection, same 23505-catch pattern as the
+  main create endpoint.
+- **B. A completely new listing** — unchanged, today's original `openNewStyle()` flow.
+- **C. A new color in an existing SKU** (`openNewColorOnExisting()` / `saveNewColor()`) — this is
+  the previously-reverted item 2, rebuilt: pick a style, the next letter (A, B, C…) is
+  auto-assigned (not editable), nothing else to fill in since sizes/images/MRP/cost are style-level
+  not per-color. Backend: `PATCH /api/styles/:code` gained an `add_color: true` flag that appends
+  the next letter server-side and re-syncs `skus` — no new route needed.
+
+**Add Listing → 2 modes** (`openListingModeChooser()`):
+- **A. New listing** — unchanged `openAddListing()` form, minus the manual Master/Relisting `Type`
+  dropdown (redundant now — the mode choice itself decides that, and `type` is derived
+  server-side from `relist_prefix`).
+- **B. Relisting of an existing listing** (`openRelistExisting()` / `saveRelist()`) — pick an
+  existing listing, choose 1st (`M`) or 2nd (`T`) relisting (already-used prefixes are disabled;
+  if both are taken, Save is blocked with a message pointing at the Founder rather than
+  extrapolating a 3rd letter). Marketplace SKU prefills as `prefix + AOBA SKU`, editable.
+
+  This finally implements the **relisting prefix rule** from 2026-08-25 (see "Known open items"
+  below) — required a real schema change since `unique(sku, marketplace)` made a second row for
+  the same pair physically impossible. Migration `0015_add_listing_relist_prefix.sql` adds
+  `listings.relist_prefix text check (in '', 'M', 'T')` and replaces that constraint with
+  `unique(sku, marketplace, relist_prefix)`. `openEditListing` had to move from a `(sku,
+  marketplace)` lookup key to the listing's own `id`, since that pair is no longer unique on its
+  own — this was a necessary side-effect fix, not optional.
+
 ## Recent work (most recent first, from git log)
 
 - Verified single Vercel production deployment
@@ -371,14 +415,11 @@ this feature, since it's the same underlying ambiguity.
   uses codes like `AOD-1A` / `AOD-1B` as fully independent styles with different pricing each.
   Surfaced 2026-08-20; not yet resolved. Don't assume either convention is "correct" — ask before
   building anything that depends on style-code-vs-SKU pricing semantics.
-- **Relisting prefix rule, given 2026-08-25, not yet implemented:** when the same SKU is relisted
-  on a marketplace, the **Marketplace SKU and barcode** (not the core AOBA SKU) gets a letter
-  prefix — 1st listing: no prefix (`AIBW-001/L`); 2nd (first relist): prefix `M`
-  (`MAIBW-001/L`); 3rd: prefix `T` (`TAIBW-001/L`). Capped at 3 for now — the user said they'll
-  give the next letter/rule if a 4th+ relist ever comes up, don't extrapolate one. Needs a real
-  relist-count field on `listings` to implement (today's schema only has a binary
-  `type: 'master'|'relisting'`, not a count) — see the memory file for full context before
-  building this.
+- **Relisting prefix rule, given 2026-08-25 — implemented 2026-08-29.** See "New Style & New
+  Listing creation flows" above for the shipped design (`openRelistExisting()`/`saveRelist()`,
+  migration `0015_add_listing_relist_prefix.sql`). Still capped at `M`/`T` (2 relists) exactly as
+  specified — the UI blocks a 3rd with a message rather than extrapolating a new letter; ask the
+  Founder before ever raising that cap.
 
 ## Working-directory note (why this file exists)
 
